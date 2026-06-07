@@ -6,6 +6,7 @@ import {
   LayoutDashboard, Users, Building2, Clock, DollarSign,
   Palmtree, FileText, UserPlus, TrendingUp, BarChart3,
   Settings, ChevronLeft, ChevronRight,
+  User, Timer, Receipt, FolderOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/lib/constants/routes'
@@ -15,6 +16,14 @@ import { useState } from 'react'
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard, Users, Building2, Clock, DollarSign,
   Palmtree, FileText, UserPlus, TrendingUp, BarChart3, Settings,
+  User, Timer, Receipt, FolderOpen,
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  adm_total:   'Administrador',
+  rh:          'RH',
+  gestor:      'Gestor',
+  colaborador: 'Colaborador',
 }
 
 export function Sidebar() {
@@ -51,25 +60,37 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 space-y-1 px-2">
+      <nav className="flex-1 py-4 space-y-0.5 px-2 overflow-y-auto">
         {visibleItems.map((item) => {
-          const Icon = ICONS[item.icon]
+          const Icon     = ICONS[item.icon]
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
 
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+            <div key={item.href}>
+              {/* Divisor antes de seções */}
+              {item.dividerBefore && !collapsed && (
+                <div className="mx-3 my-3 border-t border-slate-700">
+                  <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-2 block">
+                    Minha Área
+                  </span>
+                </div>
               )}
-            >
-              {Icon && <Icon className="h-5 w-5 shrink-0" />}
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
+              {item.dividerBefore && collapsed && (
+                <div className="mx-2 my-2 border-t border-slate-700" />
+              )}
+              <Link
+                href={item.href}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                )}
+              >
+                {Icon && <Icon className="h-5 w-5 shrink-0" />}
+                {!collapsed && <span>{item.label}</span>}
+              </Link>
+            </div>
           )
         })}
       </nav>
@@ -77,8 +98,8 @@ export function Sidebar() {
       {/* User info */}
       {!collapsed && user && (
         <div className="p-4 border-t border-slate-700">
-          <p className="text-xs text-slate-500 truncate">{user.full_name}</p>
-          <p className="text-xs text-slate-600 truncate">{user.email}</p>
+          <p className="text-xs text-slate-300 font-medium truncate">{user.full_name}</p>
+          <p className="text-xs text-slate-500 truncate">{ROLE_LABELS[user.role] ?? user.role}</p>
         </div>
       )}
     </aside>
