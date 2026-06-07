@@ -42,56 +42,39 @@ export default function RegisterPage() {
       return
     }
 
+    // 1. Cria empresa + usuario via API server-side (confirma email automaticamente)
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email:        data.email,
+        password:     data.password,
+        full_name:    data.full_name,
+        company_name: data.company_name,
+      }),
+    })
+
+    const json = await res.json()
+    if (!res.ok) {
+      toast.error(json.error ?? 'Erro ao criar conta')
+      return
+    }
+
+    // 2. Faz login com as credenciais recém-criadas
     const supabase = createClient()
-
-    const slug = data.company_name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '')
-
-    // 1. Criar conta no Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: data.email,
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email:    data.email,
       password: data.password,
     })
 
-    if (authError || !authData.user) {
-      toast.error(authError?.message ?? 'Erro ao criar conta')
+    if (signInError) {
+      toast.error('Conta criada! Faça login para continuar.')
+      router.push('/login')
       return
     }
 
-    // 2. Criar empresa
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .insert({ name: data.company_name, slug, plan: 'free', status: 'active' })
-      .select()
-      .single()
-
-    if (companyError) {
-      toast.error('Erro ao criar empresa')
-      return
-    }
-
-    // 3. Criar perfil do admin
-    await supabase.from('profiles').insert({
-      id: authData.user.id,
-      company_id: company.id,
-      full_name: data.full_name,
-      email: data.email,
-      role: 'adm_total',
-      is_active: true,
-    })
-
-    // Se o Supabase exigir confirmação de e-mail, o usuário não estará autenticado ainda
-    if (authData.user.confirmed_at || authData.session) {
-      toast.success('Empresa criada com sucesso!')
-      router.push('/onboarding')
-    } else {
-      // Confirmação de e-mail ativa no Supabase
-      router.push('/register/confirmar-email?email=' + encodeURIComponent(data.email))
-    }
+    toast.success('Empresa criada com sucesso!')
+    router.push('/onboarding')
   }
 
   return (
