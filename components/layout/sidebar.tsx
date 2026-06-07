@@ -7,7 +7,7 @@ import {
   Palmtree, FileText, UserPlus, TrendingUp, BarChart3,
   Settings, ChevronLeft, ChevronRight,
   User, Timer, Receipt, FolderOpen, Briefcase,
-  Gift, FileX, CalendarDays, Shield,
+  Gift, FileX, CalendarDays, Shield, PenLine, Network, Megaphone,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/lib/constants/routes'
@@ -18,7 +18,7 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard, Users, Building2, Clock, DollarSign,
   Palmtree, FileText, UserPlus, TrendingUp, BarChart3, Settings,
   User, Timer, Receipt, FolderOpen, Briefcase,
-  Gift, FileX, CalendarDays, Shield,
+  Gift, FileX, CalendarDays, Shield, PenLine, Network, Megaphone,
 }
 
 const ROLE_LABELS: Record<string, string> = {

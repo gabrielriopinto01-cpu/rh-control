@@ -79,6 +79,24 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['adm_total', 'rh', 'gestor'],
   },
   {
+    label: 'Assinaturas',
+    href: '/assinaturas',
+    icon: 'PenLine',
+    roles: ['adm_total', 'rh'],
+  },
+  {
+    label: 'Organograma',
+    href: '/organograma',
+    icon: 'Network',
+    roles: ['adm_total', 'rh', 'gestor'],
+  },
+  {
+    label: 'Comunicados',
+    href: '/comunicados',
+    icon: 'Megaphone',
+    roles: ['adm_total', 'rh'],
+  },
+  {
     label: '13º Salário',
     href: '/decimo-terceiro',
     icon: 'Gift',
@@ -145,6 +163,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Meus Documentos',
     href: '/meus-documentos',
     icon: 'FolderOpen',
+    roles: ['colaborador'],
+  },
+  {
+    label: 'Comunicados',
+    href: '/meus-comunicados',
+    icon: 'Megaphone',
     roles: ['colaborador'],
   },
 ]

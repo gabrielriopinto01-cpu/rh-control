@@ -26,6 +26,9 @@ const RESTRICTED_TO: Record<string, string[]> = {
   '/calendario':        ['adm_total', 'rh', 'gestor'],
   '/audit-log':         ['adm_total', 'rh'],
   '/onboarding':        ['adm_total', 'rh'],
+  '/assinaturas':       ['adm_total', 'rh'],
+  '/organograma':       ['adm_total', 'rh', 'gestor'],
+  '/comunicados':       ['adm_total', 'rh'],
 }
 
 // Rotas exclusivas do colaborador (outros papéis → /dashboard)
@@ -36,6 +39,7 @@ const COLABORADOR_ONLY = [
   '/meus-holerites',
   '/meus-documentos',
   '/banco-horas',
+  '/meus-comunicados',
 ]
 
 export async function updateSession(request: NextRequest) {
