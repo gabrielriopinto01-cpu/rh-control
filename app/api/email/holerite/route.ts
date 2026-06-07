@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { resend, FROM_EMAIL } from '@/lib/resend/client'
+import { getResend, FROM_EMAIL } from '@/lib/resend/client'
 import { holeritEmail } from '@/lib/resend/templates'
 
 export const dynamic = 'force-dynamic'
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       discounts:    item.other_discounts ?? [],
     })
 
-    const { data: sent, error: sendError } = await resend.emails.send({
+    const { data: sent, error: sendError } = await getResend().emails.send({
       from:    FROM_EMAIL,
       to:      emp.email,
       subject: `Holerite ${run?.ref_month} — ${company?.name ?? 'RH Control'}`,

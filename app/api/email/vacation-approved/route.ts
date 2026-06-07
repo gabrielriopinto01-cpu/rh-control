@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { resend, FROM_EMAIL } from '@/lib/resend/client'
+import { getResend, FROM_EMAIL } from '@/lib/resend/client'
 import { vacationApprovedEmail } from '@/lib/resend/templates'
 
 export const dynamic = 'force-dynamic'
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       approvedBy:   approver.user?.email ?? 'RH',
     })
 
-    const { error: sendError } = await resend.emails.send({
+    const { error: sendError } = await getResend().emails.send({
       from:    FROM_EMAIL,
       to:      emp.email,
       subject: `🌴 Suas férias foram aprovadas — ${company?.name ?? 'RH Control'}`,
