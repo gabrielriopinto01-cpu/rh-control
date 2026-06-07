@@ -59,14 +59,25 @@ export default function VacationsPage() {
   const load = useCallback(async () => {
     if (!isSupabaseConfigured() || !user) { setLoading(false); return }
     const supabase = createClient()
+    // Gestor só vê colaboradores e férias do seu departamento
+    let empQ = supabase.from('employees').select('*').eq('company_id', user.company_id)
+      .eq('status', 'active').order('full_name')
+    if (user.role === 'gestor' && user.department_id) {
+      empQ = empQ.eq('department_id', user.department_id)
+    }
     const [e, v] = await Promise.all([
-      supabase.from('employees').select('*').eq('company_id', user.company_id)
-        .eq('status', 'active').order('full_name'),
+      empQ,
       supabase.from('vacations').select('*').eq('company_id', user.company_id)
         .order('created_at', { ascending: false }),
     ])
-    setEmployees(e.data ?? [])
-    setVacations(v.data ?? [])
+    const empData = e.data ?? []
+    // Filtra férias pelos IDs dos colaboradores do departamento do gestor
+    const empIds = empData.map((emp) => emp.id)
+    const vacData = (user.role === 'gestor' && user.department_id)
+      ? (v.data ?? []).filter((vac) => empIds.includes(vac.employee_id))
+      : (v.data ?? [])
+    setEmployees(empData)
+    setVacations(vacData)
     setLoading(false)
   }, [user])
 

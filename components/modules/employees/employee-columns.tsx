@@ -29,9 +29,9 @@ const CONTRACT_MAP: Record<string, string> = {
 }
 
 interface RowActions {
-  onView:   (id: string) => void
-  onEdit:   (id: string) => void
-  onDelete: (id: string) => void
+  onView:    (id: string) => void
+  onEdit?:   (id: string) => void
+  onDelete?: (id: string) => void
 }
 
 export function getEmployeeColumns(actions: RowActions): ColumnDef<Employee>[] {
@@ -99,15 +99,19 @@ export function getEmployeeColumns(actions: RowActions): ColumnDef<Employee>[] {
             <DropdownMenuItem onClick={() => actions.onView(row.original.id)}>
               <Eye className="h-4 w-4 mr-2" /> Ver detalhes
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => actions.onEdit(row.original.id)}>
-              <Pencil className="h-4 w-4 mr-2" /> Editar
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => actions.onDelete(row.original.id)}
-              className="text-red-600"
-            >
-              <Trash2 className="h-4 w-4 mr-2" /> Excluir
-            </DropdownMenuItem>
+            {actions.onEdit && (
+              <DropdownMenuItem onClick={() => actions.onEdit!(row.original.id)}>
+                <Pencil className="h-4 w-4 mr-2" /> Editar
+              </DropdownMenuItem>
+            )}
+            {actions.onDelete && (
+              <DropdownMenuItem
+                onClick={() => actions.onDelete!(row.original.id)}
+                className="text-red-600"
+              >
+                <Trash2 className="h-4 w-4 mr-2" /> Excluir
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       ),

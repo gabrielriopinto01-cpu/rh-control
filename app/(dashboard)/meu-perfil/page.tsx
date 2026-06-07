@@ -1,255 +1,248 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { User, Camera, Phone, Mail, MapPin, Building2, Briefcase, Calendar, CreditCard, AlertCircle, Lock, Eye, EyeOff } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { User, KeyRound, Camera, Loader2, CheckCircle2, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
-import { useMyEmployee } from '@/hooks/use-my-employee'
-import { formatDate } from '@/lib/utils'
+import { useAuthStore } from '@/lib/store/auth-store'
 
 export const dynamic = 'force-dynamic'
 
-const CONTRACT_LABELS: Record<string, string> = {
-  clt: 'CLT', pj: 'PJ', estagio: 'Estágio', temporario: 'Temporário',
+type EmployeeInfo = {
+  full_name:  string
+  position:   string | null
+  email:      string | null
+  phone:      string | null
+  cpf:        string | null
+  hire_date:  string | null
+  department: { name: string } | null
 }
 
-function getInitials(name: string) {
-  return name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
+const ROLE_LABELS: Record<string, string> = {
+  adm_total:   'Administrador',
+  rh:          'RH',
+  gestor:      'Gestor',
+  colaborador: 'Colaborador',
 }
 
 export default function MeuPerfilPage() {
-  const { user }                            = useAuth()
-  const { employee, loading }               = useMyEmployee()
-  const [phone,     setPhone]               = useState('')
-  const [saving,    setSaving]              = useState(false)
-  const [avatarUrl, setAvatarUrl]           = useState<string | null>(null)
-  const [uploading, setUploading]           = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const { user }    = useAuth()
+  const { setUser } = useAuthStore()
 
-  // Troca de senha
-  const [pwForm,    setPwForm]    = useState({ current: '', next: '', confirm: '' })
-  const [pwSaving,  setPwSaving]  = useState(false)
-  const [showPw,    setShowPw]    = useState({ current: false, next: false, confirm: false })
+  const [empInfo,      setEmpInfo]      = useState<EmployeeInfo | null>(null)
+  const [loading,      setLoading]      = useState(true)
+  const [senha,        setSenha]        = useState({ nova: '', confirmar: '' })
+  const [showSenha,    setShowSenha]    = useState({ nova: false, confirmar: false })
+  const [savingPwd,    setSavingPwd]    = useState(false)
+  const [savingAvatar, setSavingAvatar] = useState(false)
 
-  // Inicializa estado com dados do employee quando carregado
-  const displayPhone    = phone    || employee?.phone    || ''
-  const displayAvatar   = avatarUrl ?? employee?.avatar_url ?? user?.avatar_url ?? null
-
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !isSupabaseConfigured() || !user) return
-    const ext  = file.name.split('.').pop()
-    const path = `${user.company_id}/avatars/profile_${user.id}.${ext}`
-    setUploading(true)
+  const load = useCallback(async () => {
+    if (!isSupabaseConfigured() || !user?.employee_id) { setLoading(false); return }
     const supabase = createClient()
-    const { error } = await supabase.storage.from('documents').upload(path, file, { upsert: true })
-    if (error) { toast.error('Erro ao enviar foto'); setUploading(false); return }
-    const { data } = supabase.storage.from('documents').getPublicUrl(path)
-    setAvatarUrl(data.publicUrl)
-    setUploading(false)
-    toast.success('Foto atualizada!')
-  }
+    const { data } = await supabase
+      .from('employees')
+      .select('full_name, position, email, phone, cpf, hire_date, department:departments(name)')
+      .eq('id', user.employee_id)
+      .single()
+    if (data) setEmpInfo(data as unknown as EmployeeInfo)
+    setLoading(false)
+  }, [user])
 
-  const handleSave = async () => {
-    if (!isSupabaseConfigured() || !user || !employee) return
-    setSaving(true)
-    const supabase = createClient()
-    const updates: Record<string, string | null> = {}
-    if (phone)     updates.phone     = phone
-    if (avatarUrl) updates.avatar_url = avatarUrl
-
-    if (Object.keys(updates).length === 0) { toast.info('Nenhuma alteração'); setSaving(false); return }
-
-    const { error } = await supabase.from('employees').update(updates).eq('id', employee.id)
-    if (error) { toast.error('Erro ao salvar'); setSaving(false); return }
-
-    // Atualiza avatar no profile também
-    if (avatarUrl) {
-      await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', user.id)
-    }
-
-    setSaving(false)
-    toast.success('Perfil atualizado!')
-  }
+  useEffect(() => { load() }, [load])
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!isSupabaseConfigured()) return
-    if (pwForm.next.length < 6)             { toast.error('Senha mínimo 6 caracteres'); return }
-    if (pwForm.next !== pwForm.confirm)      { toast.error('As senhas não conferem'); return }
-    setPwSaving(true)
+    if (senha.nova.length < 6) { toast.error('A nova senha deve ter no minimo 6 caracteres'); return }
+    if (senha.nova !== senha.confirmar) { toast.error('As senhas nao conferem'); return }
+    setSavingPwd(true)
     const supabase = createClient()
-    const { error } = await supabase.auth.updateUser({ password: pwForm.next })
-    setPwSaving(false)
-    if (error) { toast.error(error.message); return }
-    setPwForm({ current: '', next: '', confirm: '' })
-    toast.success('Senha alterada com sucesso!')
+    const { error } = await supabase.auth.updateUser({ password: senha.nova })
+    if (error) {
+      toast.error('Erro ao alterar senha. Tente fazer logout e login novamente.')
+    } else {
+      toast.success('Senha alterada com sucesso!')
+      setSenha({ nova: '', confirmar: '' })
+    }
+    setSavingPwd(false)
   }
 
-  if (loading) return <div className="p-8 text-center text-gray-400">Carregando...</div>
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+    if (file.size > 2 * 1024 * 1024) { toast.error('Imagem deve ter no maximo 2MB'); return }
+    setSavingAvatar(true)
+    const supabase = createClient()
+    const ext  = file.name.split('.').pop()
+    const path = `${user.company_id}/${user.id}/avatar.${ext}`
+    const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+    if (uploadError) { toast.error('Erro ao enviar imagem'); setSavingAvatar(false); return }
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+    await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', user.id)
+    setUser({ ...user, avatar_url: data.publicUrl })
+    toast.success('Foto atualizada!')
+    setSavingAvatar(false)
+  }
 
-  if (!employee) return (
-    <div className="p-12 text-center">
-      <AlertCircle className="h-10 w-10 text-yellow-400 mx-auto mb-3" />
-      <p className="font-semibold text-gray-700">Perfil de funcionário não encontrado</p>
-      <p className="text-sm text-gray-400 mt-1">Peça ao RH para vincular seu usuário ao cadastro de colaborador.</p>
-    </div>
-  )
+  const toggleShow = (field: 'nova' | 'confirmar') =>
+    setShowSenha(s => ({ ...s, [field]: !s[field] }))
 
-  const addr = employee.address
+  const initials = user?.full_name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() ?? 'EU'
+
+  const passwordStrength = [
+    senha.nova.length >= 6,
+    /[A-Z]/.test(senha.nova),
+    /[0-9]/.test(senha.nova),
+    /[^A-Za-z0-9]/.test(senha.nova),
+  ]
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="max-w-2xl space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Meu Perfil</h1>
-        <p className="text-gray-500 mt-1">Suas informações pessoais e funcionais</p>
+        <p className="text-gray-500 mt-1">Suas informacoes e configuracoes de acesso</p>
       </div>
 
-      {/* Avatar + nome */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 flex items-center gap-6">
-        <div className="relative">
-          <Avatar className="h-20 w-20">
-            {displayAvatar && <AvatarImage src={displayAvatar} alt={employee.full_name} />}
-            <AvatarFallback className="text-2xl bg-blue-100 text-blue-700">{getInitials(employee.full_name)}</AvatarFallback>
-          </Avatar>
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="absolute bottom-0 right-0 h-7 w-7 bg-blue-600 rounded-full flex items-center justify-center shadow-md hover:bg-blue-700 transition-colors"
-          >
-            {uploading ? <span className="animate-spin text-white text-xs">⟳</span> : <Camera className="h-3.5 w-3.5 text-white" />}
-          </button>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-        </div>
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">{employee.full_name}</h2>
-          <p className="text-gray-500 text-sm">{user?.email}</p>
-          <p className="text-xs text-blue-600 font-medium mt-1 uppercase tracking-wide">
-            {CONTRACT_LABELS[employee.contract_type] ?? employee.contract_type}
-          </p>
-        </div>
-      </div>
-
-      {/* Dados funcionais (somente leitura) */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
-        <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-          <Briefcase className="h-4 w-4 text-gray-400" /> Dados funcionais
-        </h3>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <InfoRow icon={<CreditCard className="h-4 w-4" />}  label="Matrícula"    value={employee.employee_code} />
-          <InfoRow icon={<Calendar className="h-4 w-4" />}    label="Admissão"     value={formatDate(employee.hire_date)} />
-          <InfoRow icon={<Building2 className="h-4 w-4" />}   label="Departamento" value={employee.department_id ?? '—'} />
-          <InfoRow icon={<Briefcase className="h-4 w-4" />}   label="CPF"          value={employee.cpf} />
-        </div>
-      </div>
-
-      {/* Dados editáveis */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
-        <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-          <User className="h-4 w-4 text-gray-400" /> Contato
-        </h3>
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label className="flex items-center gap-1.5 text-gray-600">
-              <Mail className="h-3.5 w-3.5" /> E-mail
-            </Label>
-            <Input value={user?.email ?? ''} disabled className="bg-gray-50 text-gray-500" />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="flex items-center gap-1.5 text-gray-600">
-              <Phone className="h-3.5 w-3.5" /> Telefone
-            </Label>
-            <Input
-              placeholder={employee.phone ?? 'Não informado'}
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Endereço (somente leitura) */}
-      {addr && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
-          <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-gray-400" /> Endereço
-          </h3>
-          <p className="text-sm text-gray-600">
-            {addr.street}, {addr.number}{addr.complement ? ` — ${addr.complement}` : ''}<br />
-            {addr.neighborhood} — {addr.city}/{addr.state} — CEP {addr.cep}
-          </p>
-        </div>
-      )}
-
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving}>
-          {saving && <span className="mr-2 animate-spin">⟳</span>}
-          Salvar alterações
-        </Button>
-      </div>
-
-      {/* Troca de senha */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
-        <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-          <Lock className="h-4 w-4 text-gray-400" /> Alterar senha
-        </h3>
-        <form onSubmit={handleChangePassword} className="space-y-4">
-          {(['next', 'confirm'] as const).map((field) => {
-            const labels = { next: 'Nova senha', confirm: 'Confirmar nova senha' }
-            return (
-              <div key={field} className="space-y-1.5">
-                <Label>{labels[field]}</Label>
-                <div className="relative">
-                  <Input
-                    type={showPw[field] ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={pwForm[field]}
-                    onChange={e => setPwForm(f => ({ ...f, [field]: e.target.value }))}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw(s => ({ ...s, [field]: !s[field] }))}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPw[field] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-          {pwForm.next && pwForm.confirm && pwForm.next !== pwForm.confirm && (
-            <p className="text-xs text-red-500">As senhas não conferem</p>
-          )}
-          <div className="flex justify-end">
-            <Button
-              type="submit"
-              variant="outline"
-              disabled={pwSaving || !pwForm.next || !pwForm.confirm}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-start gap-5">
+          <div className="relative flex-shrink-0">
+            <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center overflow-hidden">
+              {user?.avatar_url
+                ? <img src={user.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
+                : <span className="text-2xl font-bold text-white">{initials}</span>
+              }
+            </div>
+            <label
+              className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center cursor-pointer hover:bg-gray-50 shadow-sm"
+              title="Trocar foto"
             >
-              {pwSaving && <span className="mr-2 animate-spin">⟳</span>}
-              Alterar senha
-            </Button>
+              {savingAvatar
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-500" />
+                : <Camera className="h-3.5 w-3.5 text-gray-500" />
+              }
+              <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+            </label>
           </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg font-semibold text-gray-900 truncate">{user?.full_name}</h2>
+              <Badge variant="secondary">{ROLE_LABELS[user?.role ?? ''] ?? user?.role}</Badge>
+            </div>
+            <p className="text-gray-500 text-sm mt-0.5">{user?.email}</p>
+            {empInfo?.position && (
+              <p className="text-gray-600 text-sm mt-1 font-medium">{empInfo.position}</p>
+            )}
+          </div>
+        </div>
+
+        {empInfo && (
+          <>
+            <Separator className="my-5" />
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              {[
+                { label: 'Departamento', value: (empInfo.department as { name: string } | null)?.name ?? '-' },
+                { label: 'CPF',         value: empInfo.cpf ?? '-' },
+                { label: 'Telefone',    value: empInfo.phone ?? '-' },
+                { label: 'Admissao',    value: empInfo.hire_date ? new Date(empInfo.hire_date + 'T00:00:00').toLocaleDateString('pt-BR') : '-' },
+              ].map(({ label, value }) => (
+                <div key={label}>
+                  <p className="text-gray-400 text-xs uppercase tracking-wide mb-0.5">{label}</p>
+                  <p className="text-gray-800 font-medium">{value}</p>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="h-9 w-9 rounded-lg bg-amber-100 flex items-center justify-center">
+            <KeyRound className="h-4 w-4 text-amber-600" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-900">Alterar senha</h3>
+            <p className="text-xs text-gray-400">Minimo de 6 caracteres</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleChangePassword} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Nova senha *</Label>
+            <div className="relative">
+              <Input
+                type={showSenha.nova ? 'text' : 'password'}
+                placeholder="Digite a nova senha"
+                value={senha.nova}
+                onChange={e => setSenha(s => ({ ...s, nova: e.target.value }))}
+                className="pr-10"
+              />
+              <button type="button" onClick={() => toggleShow('nova')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                {showSenha.nova ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {senha.nova && (
+              <div className="flex gap-1 mt-1">
+                {passwordStrength.map((ok, i) => (
+                  <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${ok ? 'bg-green-400' : 'bg-gray-200'}`} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Confirmar nova senha *</Label>
+            <div className="relative">
+              <Input
+                type={showSenha.confirmar ? 'text' : 'password'}
+                placeholder="Repita a nova senha"
+                value={senha.confirmar}
+                onChange={e => setSenha(s => ({ ...s, confirmar: e.target.value }))}
+                className="pr-10"
+              />
+              <button type="button" onClick={() => toggleShow('confirmar')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                {showSenha.confirmar ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {senha.confirmar && senha.nova !== senha.confirmar && (
+              <p className="text-xs text-red-500">As senhas nao conferem</p>
+            )}
+            {senha.confirmar && senha.nova === senha.confirmar && senha.nova.length >= 6 && (
+              <p className="text-xs text-green-600 flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Senhas conferem
+              </p>
+            )}
+          </div>
+
+          <Button
+            type="submit"
+            disabled={savingPwd || senha.nova.length < 6 || senha.nova !== senha.confirmar}
+          >
+            {savingPwd && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Alterar senha
+          </Button>
         </form>
       </div>
-    </div>
-  )
-}
 
-function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="flex items-start gap-2">
-      <span className="text-gray-400 mt-0.5">{icon}</span>
-      <div>
-        <p className="text-xs text-gray-400">{label}</p>
-        <p className="font-medium text-gray-800">{value}</p>
+      <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl text-sm text-blue-700">
+        <User className="h-4 w-4 mt-0.5 flex-shrink-0" />
+        <p>Para alterar dados pessoais (nome, CPF, telefone), entre em contato com o departamento de RH.</p>
       </div>
     </div>
   )

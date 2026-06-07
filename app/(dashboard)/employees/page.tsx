@@ -27,8 +27,13 @@ export default function EmployeesPage() {
   const load = useCallback(async () => {
     if (!isSupabaseConfigured() || !user) { setLoading(false); return }
     const supabase = createClient()
+    // Gestor só vê colaboradores do seu departamento
+    let empQuery = supabase.from('employees').select('*').eq('company_id', user.company_id).order('full_name')
+    if (user.role === 'gestor' && user.department_id) {
+      empQuery = empQuery.eq('department_id', user.department_id)
+    }
     const [emp, dept, pos] = await Promise.all([
-      supabase.from('employees').select('*').eq('company_id', user.company_id).order('full_name'),
+      empQuery,
       supabase.from('departments').select('*').eq('company_id', user.company_id).order('name'),
       supabase.from('positions').select('*').eq('company_id', user.company_id).order('title'),
     ])
@@ -120,10 +125,11 @@ export default function EmployeesPage() {
     load()
   }
 
+  const isGestor = user?.role === 'gestor'
   const columns = getEmployeeColumns({
     onView:   (id) => router.push(`/employees/${id}`),
-    onEdit:   (id) => { setEditingId(id); setSheetOpen(true) },
-    onDelete: handleDelete,
+    onEdit:   isGestor ? undefined : (id) => { setEditingId(id); setSheetOpen(true) },
+    onDelete: isGestor ? undefined : handleDelete,
   })
 
   const stats = [
@@ -140,9 +146,11 @@ export default function EmployeesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Colaboradores</h1>
           <p className="text-gray-500 mt-1">Gerencie os colaboradores da empresa</p>
         </div>
-        <Button onClick={() => { setEditingId(null); setSheetOpen(true) }}>
-          <Plus className="h-4 w-4 mr-2" /> Novo colaborador
-        </Button>
+        {user?.role !== 'gestor' && (
+          <Button onClick={() => { setEditingId(null); setSheetOpen(true) }}>
+            <Plus className="h-4 w-4 mr-2" /> Novo colaborador
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

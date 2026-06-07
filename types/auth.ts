@@ -8,6 +8,8 @@ export interface AuthUser {
   role: UserRole
   full_name: string
   avatar_url: string | null
+  employee_id: string | null
+  department_id: string | null
 }
 
 export interface Session {

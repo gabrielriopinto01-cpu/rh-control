@@ -38,6 +38,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (profile) {
+        // Busca department_id do employee vinculado ao perfil
+        let department_id: string | null = null
+        if (profile.employee_id) {
+          const { data: emp } = await supabase
+            .from('employees')
+            .select('department_id')
+            .eq('id', profile.employee_id)
+            .single()
+          department_id = emp?.department_id ?? null
+        }
+
         setUser({
           id: authUser.id,
           email: authUser.email!,
@@ -46,6 +57,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: profile.role,
           full_name: profile.full_name,
           avatar_url: profile.avatar_url,
+          employee_id: profile.employee_id ?? null,
+          department_id,
         })
         setRoleCookie(profile.role)
       } else {
