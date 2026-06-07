@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { employeeSchema, type EmployeeFormInput, type EmployeeFormData } from '@/lib/validations/employee'
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Loader2, Camera, User } from 'lucide-react'
+import { toast } from 'sonner'
 import { nn } from '@/lib/utils'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 import type { Department, Position } from '@/types/database'
@@ -25,6 +26,26 @@ interface EmployeeFormProps {
   onCancel: () => void
 }
 
+function maskCPF(v: string) {
+  return v.replace(/\D/g, '').slice(0, 11)
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+}
+
+function maskRG(v: string) {
+  return v.replace(/\D/g, '').slice(0, 9)
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1})$/, '$1-$2')
+}
+
+function maskPhone(v: string) {
+  const d = v.replace(/\D/g, '').slice(0, 11)
+  if (d.length <= 10) return d.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3')
+  return d.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3')
+}
+
 export function EmployeeForm({ defaultValues, departments, positions, companyId, initialAvatarUrl, onSubmit, onCancel }: EmployeeFormProps) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl ?? null)
@@ -33,12 +54,27 @@ export function EmployeeForm({ defaultValues, departments, positions, companyId,
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !companyId || !isSupabaseConfigured()) return
+    if (file.size > 2 * 1024 * 1024) { toast.error('Imagem deve ter no máximo 2 MB'); return }
+
+    // Valida MIME type real pelos magic bytes
+    const validMime = await new Promise<boolean>((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const arr = new Uint8Array(reader.result as ArrayBuffer).subarray(0, 4)
+        const header = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('')
+        resolve(header.startsWith('ffd8ff') || header === '89504e47' || header.startsWith('52494646'))
+      }
+      reader.readAsArrayBuffer(file.slice(0, 4))
+    })
+    if (!validMime) { toast.error('Formato inválido. Use JPG, PNG ou WEBP.'); return }
+
     setUploading(true)
-    const ext  = file.name.split('.').pop()
+    const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
     const path = `${companyId}/avatars/${Date.now()}.${ext}`
     const supabase = createClient()
     const { error } = await supabase.storage.from('documents').upload(path, file, { upsert: true })
     if (error) {
+      toast.error('Erro ao enviar a foto. Tente novamente.')
       setUploading(false)
       return
     }
@@ -59,9 +95,10 @@ export function EmployeeForm({ defaultValues, departments, positions, companyId,
   })
 
   const selectedDept = watch('department_id')
-  const filteredPositions = selectedDept
-    ? positions.filter((p) => p.department_id === selectedDept)
-    : positions
+  const filteredPositions = useMemo(
+    () => selectedDept ? positions.filter((p) => p.department_id === selectedDept) : positions,
+    [selectedDept, positions]
+  )
 
   return (
     <form onSubmit={handleSubmit((data) => onSubmit(data, avatarUrl))} className="space-y-6">
@@ -106,12 +143,26 @@ export function EmployeeForm({ defaultValues, departments, positions, companyId,
             </div>
             <div className="space-y-1.5">
               <Label>CPF *</Label>
-              <Input placeholder="000.000.000-00" {...register('cpf')} />
+              <Input
+                placeholder="000.000.000-00"
+                {...register('cpf')}
+                onChange={(e) => {
+                  e.target.value = maskCPF(e.target.value)
+                  register('cpf').onChange(e)
+                }}
+              />
               {errors.cpf && <p className="text-xs text-red-500">{errors.cpf.message}</p>}
             </div>
             <div className="space-y-1.5">
               <Label>RG</Label>
-              <Input placeholder="00.000.000-0" {...register('rg')} />
+              <Input
+                placeholder="00.000.000-0"
+                {...register('rg')}
+                onChange={(e) => {
+                  e.target.value = maskRG(e.target.value)
+                  register('rg').onChange(e)
+                }}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Data de nascimento</Label>
@@ -124,7 +175,14 @@ export function EmployeeForm({ defaultValues, departments, positions, companyId,
             </div>
             <div className="space-y-1.5">
               <Label>Telefone</Label>
-              <Input placeholder="(11) 99999-9999" {...register('phone')} />
+              <Input
+                placeholder="(11) 99999-9999"
+                {...register('phone')}
+                onChange={(e) => {
+                  e.target.value = maskPhone(e.target.value)
+                  register('phone').onChange(e)
+                }}
+              />
             </div>
           </div>
         </TabsContent>

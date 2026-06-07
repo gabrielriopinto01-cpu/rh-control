@@ -10,12 +10,53 @@ const supabaseAdmin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
+// Rate limiting simples em memória: máx 5 tentativas por IP a cada 15 minutos
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+const RATE_LIMIT_MAX = 5
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(ip)
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false
+  entry.count++
+  return true
+}
+
+// Validação simples de email
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 export async function POST(req: NextRequest) {
   try {
+    // Rate limiting por IP
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('x-real-ip') ?? 'unknown'
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas. Aguarde 15 minutos e tente novamente.' },
+        { status: 429 }
+      )
+    }
+
     const { email, password, full_name, company_name } = await req.json()
 
     if (!email || !password || !full_name || !company_name) {
-      return NextResponse.json({ error: 'Campos obrigatorios faltando' }, { status: 400 })
+      return NextResponse.json({ error: 'Todos os campos são obrigatórios.' }, { status: 400 })
+    }
+    if (!EMAIL_RE.test(email)) {
+      return NextResponse.json({ error: 'E-mail inválido.' }, { status: 400 })
+    }
+    if (typeof password !== 'string' || password.length < 6) {
+      return NextResponse.json({ error: 'A senha deve ter ao menos 6 caracteres.' }, { status: 400 })
+    }
+    if (typeof full_name !== 'string' || full_name.trim().length < 2) {
+      return NextResponse.json({ error: 'Nome completo inválido.' }, { status: 400 })
+    }
+    if (typeof company_name !== 'string' || company_name.trim().length < 2) {
+      return NextResponse.json({ error: 'Nome da empresa inválido.' }, { status: 400 })
     }
 
     const slug = company_name

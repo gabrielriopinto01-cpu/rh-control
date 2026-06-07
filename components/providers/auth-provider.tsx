@@ -31,6 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false)
         return
       }
+      // Busca perfil + empresa + departamento do employee em paralelo quando há employee_id
       const { data: profile } = await supabase
         .from('profiles')
         .select('*, companies(slug)')
@@ -38,16 +39,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (profile) {
-        // Busca department_id do employee vinculado ao perfil
-        let department_id: string | null = null
-        if (profile.employee_id) {
-          const { data: emp } = await supabase
-            .from('employees')
-            .select('department_id')
-            .eq('id', profile.employee_id)
-            .single()
-          department_id = emp?.department_id ?? null
-        }
+        // Busca department_id em paralelo só se houver employee_id (evita query desnecessária)
+        const department_id = profile.employee_id
+          ? await supabase
+              .from('employees')
+              .select('department_id')
+              .eq('id', profile.employee_id)
+              .single()
+              .then(({ data }) => data?.department_id ?? null)
+          : null
 
         setUser({
           id: authUser.id,

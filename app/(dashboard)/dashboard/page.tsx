@@ -67,10 +67,18 @@ export default function DashboardPage() {
       last6.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
     }
 
-    const [empRes, vacRes, docRes, jobRes, payRes, payTrendRes, reviewRes] = await Promise.all([
-      supabase.from('employees').select('id, full_name, hire_date, termination_date, status')
-        .eq('company_id', user.company_id).order('hire_date', { ascending: false }),
-      supabase.from('vacations').select('id, status').eq('company_id', user.company_id),
+    const isGestor = user.role === 'gestor' && !!user.department_id
+
+    // Gestor só vê dados do próprio departamento
+    let empQ = supabase.from('employees').select('id, full_name, hire_date, termination_date, status')
+      .eq('company_id', user.company_id).order('hire_date', { ascending: false })
+    if (isGestor) empQ = empQ.eq('department_id', user.department_id!)
+
+    let vacQ = supabase.from('vacations').select('id, status, employee_id').eq('company_id', user.company_id)
+
+    const [empRes, vacRes, docRes, jobRes, payRes, payTrendRes, reviewRes] = await Promise.allSettled([
+      empQ,
+      vacQ,
       supabase.from('documents').select('id, expires_at').eq('company_id', user.company_id),
       supabase.from('job_openings').select('id, status').eq('company_id', user.company_id),
       supabase.from('payrolls').select('total_net').eq('company_id', user.company_id)
@@ -80,12 +88,16 @@ export default function DashboardPage() {
       supabase.from('performance_reviews').select('id, created_at').eq('company_id', user.company_id),
     ])
 
-    const employees = empRes.data ?? []
-    const vacations = vacRes.data ?? []
-    const docs      = docRes.data ?? []
-    const jobs      = jobRes.data ?? []
-    const reviews   = reviewRes.data ?? []
-    const payTrend  = payTrendRes.data ?? []
+    const employees = (empRes.status === 'fulfilled' ? empRes.value.data : null) ?? []
+    const allVacs   = (vacRes.status === 'fulfilled' ? vacRes.value.data : null) ?? []
+    // Gestor filtra férias pelos IDs dos próprios colaboradores
+    const empIdSet  = new Set(employees.map((e: { id: string }) => e.id))
+    const vacations = isGestor ? allVacs.filter((v: { employee_id: string }) => empIdSet.has(v.employee_id)) : allVacs
+    const docs      = (docRes.status === 'fulfilled' ? docRes.value.data : null) ?? []
+    const jobs      = (jobRes.status === 'fulfilled' ? jobRes.value.data : null) ?? []
+    const reviews   = (reviewRes.status === 'fulfilled' ? reviewRes.value.data : null) ?? []
+    const payTrend  = (payTrendRes.status === 'fulfilled' ? payTrendRes.value.data : null) ?? []
+    const payResData = payRes.status === 'fulfilled' ? payRes.value.data : null
 
     const activeEmps    = employees.filter(e => e.status === 'active')
     const expiringDocs  = docs.filter(d => d.expires_at && d.expires_at >= today && d.expires_at <= in30days).length
@@ -120,7 +132,7 @@ export default function DashboardPage() {
       pendingVacations:      vacations.filter(v => v.status === 'pending').length,
       expiringDocs,
       openJobs:              jobs.filter(j => j.status === 'open').length,
-      currentPayrollNet:     payRes.data?.total_net ?? null,
+      currentPayrollNet:     payResData?.total_net ?? null,
       admissionsThisMonth:   admissions,
       terminationsThisMonth: terminations,
       reviewsThisMonth:      reviewsMonth,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Palmtree, Clock, CheckCircle2, XCircle, Plus, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -59,25 +59,34 @@ export default function VacationsPage() {
   const load = useCallback(async () => {
     if (!isSupabaseConfigured() || !user) { setLoading(false); return }
     const supabase = createClient()
-    // Gestor só vê colaboradores e férias do seu departamento
+
+    // 1. Busca colaboradores (gestor só vê o próprio departamento)
     let empQ = supabase.from('employees').select('*').eq('company_id', user.company_id)
       .eq('status', 'active').order('full_name')
     if (user.role === 'gestor' && user.department_id) {
       empQ = empQ.eq('department_id', user.department_id)
     }
-    const [e, v] = await Promise.all([
-      empQ,
-      supabase.from('vacations').select('*').eq('company_id', user.company_id)
-        .order('created_at', { ascending: false }),
-    ])
-    const empData = e.data ?? []
-    // Filtra férias pelos IDs dos colaboradores do departamento do gestor
+    const empRes = await empQ
+    const empData = empRes.data ?? []
+
+    // 2. Busca férias — filtra no banco pelos IDs dos colaboradores (gestor não recebe dados de outros depts)
     const empIds = empData.map((emp) => emp.id)
-    const vacData = (user.role === 'gestor' && user.department_id)
-      ? (v.data ?? []).filter((vac) => empIds.includes(vac.employee_id))
-      : (v.data ?? [])
+    let vacQ = supabase.from('vacations').select('*').eq('company_id', user.company_id)
+      .order('created_at', { ascending: false })
+    if (user.role === 'gestor') {
+      if (empIds.length === 0) {
+        // Gestor sem colaboradores no dept — não busca nada
+        setEmployees([])
+        setVacations([])
+        setLoading(false)
+        return
+      }
+      vacQ = vacQ.in('employee_id', empIds)
+    }
+    const vacRes = await vacQ
+
     setEmployees(empData)
-    setVacations(vacData)
+    setVacations(vacRes.data ?? [])
     setLoading(false)
   }, [user])
 
@@ -132,16 +141,21 @@ export default function VacationsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir esta solicitação?')) return
     const supabase = createClient()
-    await supabase.from('vacations').delete().eq('id', id)
+    const { error } = await supabase.from('vacations').delete().eq('id', id)
+    if (error) { toast.error('Erro ao excluir solicitação'); return }
     toast.success('Solicitação excluída')
     load()
   }
 
   const getEmpName = (id: string) => employees.find(e => e.id === id)?.full_name ?? '—'
-  const filtered = filter === 'all' ? vacations : vacations.filter(v => v.status === filter)
 
-  // Vacation balance: CLT — 30 days earned per completed 12-month acquisition period
-  const vacationBalances = employees.map(emp => {
+  const filtered = useMemo(
+    () => filter === 'all' ? vacations : vacations.filter(v => v.status === filter),
+    [filter, vacations]
+  )
+
+  // Saldo de férias: CLT — 30 dias por período aquisitivo completo de 12 meses
+  const vacationBalances = useMemo(() => employees.map(emp => {
     const hire  = new Date(emp.hire_date)
     const today = new Date()
     const monthsWorked = (today.getFullYear() - hire.getFullYear()) * 12 + (today.getMonth() - hire.getMonth())
@@ -156,7 +170,7 @@ export default function VacationsPage() {
     const nextPeriodMonths = monthsWorked % 12
 
     return { emp, daysEarned, daysUsed, balance, monthsWorked, nextPeriodMonths }
-  }).filter(b => b.monthsWorked >= 6) // show only after 6 months of work
+  }).filter(b => b.monthsWorked >= 6), [employees, vacations])
 
   const [showBalance, setShowBalance] = useState(false)
 

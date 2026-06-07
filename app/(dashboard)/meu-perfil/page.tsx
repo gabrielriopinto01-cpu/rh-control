@@ -58,8 +58,8 @@ export default function MeuPerfilPage() {
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (senha.nova.length < 6) { toast.error('A nova senha deve ter no minimo 6 caracteres'); return }
-    if (senha.nova !== senha.confirmar) { toast.error('As senhas nao conferem'); return }
+    if (senha.nova.length < 6) { toast.error('A nova senha deve ter no mínimo 6 caracteres'); return }
+    if (senha.nova !== senha.confirmar) { toast.error('As senhas não conferem'); return }
     setSavingPwd(true)
     const supabase = createClient()
     const { error } = await supabase.auth.updateUser({ password: senha.nova })
@@ -75,13 +75,29 @@ export default function MeuPerfilPage() {
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !user) return
-    if (file.size > 2 * 1024 * 1024) { toast.error('Imagem deve ter no maximo 2MB'); return }
+    if (file.size > 2 * 1024 * 1024) { toast.error('Imagem deve ter no máximo 2 MB'); return }
+
+    // Valida MIME type real lendo os primeiros bytes (magic bytes)
+    const validMime = await new Promise<boolean>((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const arr = new Uint8Array(reader.result as ArrayBuffer).subarray(0, 4)
+        const header = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('')
+        const isJpeg = header.startsWith('ffd8ff')
+        const isPng  = header === '89504e47'
+        const isWebp = header.startsWith('52494646') // RIFF
+        resolve(isJpeg || isPng || isWebp)
+      }
+      reader.readAsArrayBuffer(file.slice(0, 4))
+    })
+    if (!validMime) { toast.error('Formato inválido. Use JPG, PNG ou WEBP.'); return }
+
     setSavingAvatar(true)
     const supabase = createClient()
-    const ext  = file.name.split('.').pop()
+    const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
     const path = `${user.company_id}/${user.id}/avatar.${ext}`
     const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
-    if (uploadError) { toast.error('Erro ao enviar imagem'); setSavingAvatar(false); return }
+    if (uploadError) { toast.error('Erro ao enviar imagem. Tente novamente.'); setSavingAvatar(false); return }
     const { data } = supabase.storage.from('avatars').getPublicUrl(path)
     await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', user.id)
     setUser({ ...user, avatar_url: data.publicUrl })
@@ -113,7 +129,7 @@ export default function MeuPerfilPage() {
     <div className="max-w-2xl space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Meu Perfil</h1>
-        <p className="text-gray-500 mt-1">Suas informacoes e configuracoes de acesso</p>
+        <p className="text-gray-500 mt-1">Suas informações e configurações de acesso</p>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -157,7 +173,7 @@ export default function MeuPerfilPage() {
                 { label: 'Departamento', value: (empInfo.department as { name: string } | null)?.name ?? '-' },
                 { label: 'CPF',         value: empInfo.cpf ?? '-' },
                 { label: 'Telefone',    value: empInfo.phone ?? '-' },
-                { label: 'Admissao',    value: empInfo.hire_date ? new Date(empInfo.hire_date + 'T00:00:00').toLocaleDateString('pt-BR') : '-' },
+                { label: 'Admissão',    value: empInfo.hire_date ? new Date(empInfo.hire_date + 'T00:00:00').toLocaleDateString('pt-BR') : '-' },
               ].map(({ label, value }) => (
                 <div key={label}>
                   <p className="text-gray-400 text-xs uppercase tracking-wide mb-0.5">{label}</p>
@@ -176,7 +192,7 @@ export default function MeuPerfilPage() {
           </div>
           <div>
             <h3 className="font-semibold text-gray-900">Alterar senha</h3>
-            <p className="text-xs text-gray-400">Minimo de 6 caracteres</p>
+            <p className="text-xs text-gray-400">Mínimo de 6 caracteres</p>
           </div>
         </div>
 
@@ -221,7 +237,7 @@ export default function MeuPerfilPage() {
               </button>
             </div>
             {senha.confirmar && senha.nova !== senha.confirmar && (
-              <p className="text-xs text-red-500">As senhas nao conferem</p>
+              <p className="text-xs text-red-500">As senhas não conferem</p>
             )}
             {senha.confirmar && senha.nova === senha.confirmar && senha.nova.length >= 6 && (
               <p className="text-xs text-green-600 flex items-center gap-1">

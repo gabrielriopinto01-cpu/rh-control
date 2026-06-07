@@ -32,14 +32,14 @@ export default function EmployeesPage() {
     if (user.role === 'gestor' && user.department_id) {
       empQuery = empQuery.eq('department_id', user.department_id)
     }
-    const [emp, dept, pos] = await Promise.all([
+    const [emp, dept, pos] = await Promise.allSettled([
       empQuery,
       supabase.from('departments').select('*').eq('company_id', user.company_id).order('name'),
       supabase.from('positions').select('*').eq('company_id', user.company_id).order('title'),
     ])
-    setEmployees(emp.data ?? [])
-    setDepartments(dept.data ?? [])
-    setPositions(pos.data ?? [])
+    setEmployees(emp.status === 'fulfilled' ? (emp.value.data ?? []) : [])
+    setDepartments(dept.status === 'fulfilled' ? (dept.value.data ?? []) : [])
+    setPositions(pos.status === 'fulfilled' ? (pos.value.data ?? []) : [])
     setLoading(false)
   }, [user])
 
