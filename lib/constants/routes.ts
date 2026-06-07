@@ -79,6 +79,30 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['adm_total', 'rh', 'gestor'],
   },
   {
+    label: '13º Salário',
+    href: '/decimo-terceiro',
+    icon: 'Gift',
+    roles: ['adm_total', 'rh'],
+  },
+  {
+    label: 'Rescisão',
+    href: '/rescisao',
+    icon: 'FileX',
+    roles: ['adm_total', 'rh'],
+  },
+  {
+    label: 'Calendário',
+    href: '/calendario',
+    icon: 'CalendarDays',
+    roles: ['adm_total', 'rh', 'gestor'],
+  },
+  {
+    label: 'Log de Auditoria',
+    href: '/audit-log',
+    icon: 'Shield',
+    roles: ['adm_total', 'rh'],
+  },
+  {
     label: 'Configurações',
     href: '/settings',
     icon: 'Settings',

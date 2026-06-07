@@ -20,7 +20,12 @@ const RESTRICTED_TO: Record<string, string[]> = {
   '/vacations':     ['adm_total', 'rh', 'gestor'],
   '/documents':     ['adm_total', 'rh', 'gestor'],
   '/performance':   ['adm_total', 'rh', 'gestor'],
-  '/employees':     ['adm_total', 'rh', 'gestor'],
+  '/employees':         ['adm_total', 'rh', 'gestor'],
+  '/decimo-terceiro':   ['adm_total', 'rh'],
+  '/rescisao':          ['adm_total', 'rh'],
+  '/calendario':        ['adm_total', 'rh', 'gestor'],
+  '/audit-log':         ['adm_total', 'rh'],
+  '/onboarding':        ['adm_total', 'rh'],
 }
 
 // Rotas exclusivas do colaborador (outros papéis → /dashboard)

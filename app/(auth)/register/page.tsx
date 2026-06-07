@@ -87,7 +87,7 @@ export default function RegisterPage() {
     // Se o Supabase exigir confirmação de e-mail, o usuário não estará autenticado ainda
     if (authData.user.confirmed_at || authData.session) {
       toast.success('Empresa criada com sucesso!')
-      router.push('/dashboard')
+      router.push('/onboarding')
     } else {
       toast.success('Empresa criada! Verifique seu e-mail para ativar a conta.')
       router.push('/login?confirm=1')
