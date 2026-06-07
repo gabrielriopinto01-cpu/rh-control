@@ -73,7 +73,7 @@ export default function DecimoTerceiroPage() {
       .eq('company_id', user.company_id)
       .eq('status', 'active')
       .order('full_name')
-    setEmployees((data as Employee[]) ?? [])
+    setEmployees((data as unknown as Employee[]) ?? [])
     setLoading(false)
   }, [user])
 

@@ -87,7 +87,9 @@ create table if not exists employees (
 
 -- FK manager em departments (criada após employees existir)
 alter table departments
-  add constraint if not exists departments_manager_fk
+  drop constraint if exists departments_manager_fk;
+alter table departments
+  add constraint departments_manager_fk
   foreign key (manager_id) references employees(id);
 
 -- Auto-increment employee_code por empresa

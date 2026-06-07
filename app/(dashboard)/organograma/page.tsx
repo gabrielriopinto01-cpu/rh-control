@@ -172,7 +172,7 @@ export default function OrganogramaPage() {
         .eq('company_id', user.company_id)
         .order('name'),
     ])
-    setEmployees((eRes.data as Employee[]) ?? [])
+    setEmployees((eRes.data as unknown as Employee[]) ?? [])
     setDepartments((dRes.data as Department[]) ?? [])
     setLoading(false)
   }, [user])

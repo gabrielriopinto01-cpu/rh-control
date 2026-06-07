@@ -2,6 +2,9 @@
 -- Migration 002: Audit Log
 -- ============================================================
 
+-- Renomeia payrolls → payroll_runs (nome correto usado pela aplicação)
+alter table if exists public.payrolls rename to payroll_runs;
+
 create table if not exists public.audit_logs (
   id           uuid primary key default gen_random_uuid(),
   company_id   uuid not null references public.companies(id) on delete cascade,
