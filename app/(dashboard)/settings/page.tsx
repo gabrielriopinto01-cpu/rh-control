@@ -47,8 +47,9 @@ export default function SettingsPage() {
   const [pwForm, setPwForm] = useState({ next: '', confirm: '' })
   // Convite
   const [inviteDialog, setInviteDialog] = useState(false)
-  const [inviteForm,   setInviteForm]   = useState({ email: '', full_name: '', role: 'colaborador' })
+  const [inviteForm,   setInviteForm]   = useState({ email: '', full_name: '', role: 'colaborador', employee_id: '' })
   const [inviting,     setInviting]     = useState(false)
+  const [unlinkedEmps, setUnlinkedEmps] = useState<Array<{ id: string; full_name: string; email: string | null }>>([])
 
   const load = useCallback(async () => {
     if (!isSupabaseConfigured() || !user) { setLoading(false); return }
@@ -69,6 +70,15 @@ export default function SettingsPage() {
       setAvatarUrl(pRes.data.avatar_url)
     }
     setMembers(mRes.data ?? [])
+    // Busca funcionários sem profile vinculado
+    const { data: emps } = await supabase
+      .from('employees')
+      .select('id, full_name, email')
+      .eq('company_id', user.company_id)
+      .eq('status', 'active')
+      .is('profile_id', null)
+      .order('full_name')
+    setUnlinkedEmps(emps ?? [])
     setLoading(false)
   }, [user])
 
@@ -199,17 +209,26 @@ export default function SettingsPage() {
 
     // Cria o profile manualmente (caso o trigger não rode ainda)
     await supabase.from('profiles').upsert({
-      id:         authData.user.id,
-      company_id: user.company_id,
-      full_name:  inviteForm.full_name,
-      email:      inviteForm.email,
-      role:       inviteForm.role,
-      is_active:  true,
+      id:          authData.user.id,
+      company_id:  user.company_id,
+      full_name:   inviteForm.full_name,
+      email:       inviteForm.email,
+      role:        inviteForm.role,
+      employee_id: inviteForm.employee_id || null,
+      is_active:   true,
     }, { onConflict: 'id' })
+
+    // Vincula profile_id ao registro de funcionário selecionado
+    if (inviteForm.employee_id) {
+      await supabase
+        .from('employees')
+        .update({ profile_id: authData.user.id })
+        .eq('id', inviteForm.employee_id)
+    }
 
     setInviting(false)
     setInviteDialog(false)
-    setInviteForm({ email: '', full_name: '', role: 'colaborador' })
+    setInviteForm({ email: '', full_name: '', role: 'colaborador', employee_id: '' })
     toast.success(`Convite enviado para ${inviteForm.email}! Senha temporária: ${tempPassword}`, {
       duration: 10000,
       description: 'Anote a senha — o usuário deve alterá-la no primeiro acesso.',
@@ -482,6 +501,24 @@ export default function SettingsPage() {
                 </SelectContent>
               </Select>
             </div>
+            {inviteForm.role === 'colaborador' && unlinkedEmps.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>Vincular ao funcionário</Label>
+                <Select
+                  defaultValue={inviteForm.employee_id || 'none'}
+                  onValueChange={(v) => setInviteForm(f => ({ ...f, employee_id: v === 'none' ? '' : (v ?? '') }))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecionar funcionário (opcional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não vincular agora</SelectItem>
+                    {unlinkedEmps.map(e => (
+                      <SelectItem key={e.id} value={e.id}>{e.full_name}{e.email ? ` — ${e.email}` : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-400">Vincula o login ao cadastro de funcionário para acesso ao Meu Ponto, Holerites etc.</p>
+              </div>
+            )}
             <p className="text-xs text-gray-400 bg-gray-50 rounded-lg p-3">
               Uma senha temporária será gerada. Compartilhe com o colaborador para o primeiro acesso — ele poderá alterá-la nas configurações.
             </p>

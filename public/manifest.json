@@ -9,16 +9,16 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "/icons/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
@@ -26,19 +26,22 @@
       "name": "Bater Ponto",
       "short_name": "Ponto",
       "url": "/meu-ponto",
-      "description": "Registrar ponto agora"
+      "description": "Registrar ponto agora",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
     },
     {
       "name": "Minhas Férias",
       "short_name": "Férias",
       "url": "/minhas-ferias",
-      "description": "Ver saldo e solicitar férias"
+      "description": "Ver saldo e solicitar férias",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
     },
     {
       "name": "Meu Holerite",
       "short_name": "Holerite",
       "url": "/meus-holerites",
-      "description": "Ver holerite do mês"
+      "description": "Ver holerite do mês",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
     }
   ],
   "categories": ["business", "productivity"],

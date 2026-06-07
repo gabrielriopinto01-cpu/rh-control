@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { AuthProvider } from '@/components/providers/auth-provider'
 import { PWAProvider } from '@/components/providers/pwa-provider'
-import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -52,7 +51,6 @@ export default function RootLayout({
             {children}
           </PWAProvider>
         </AuthProvider>
-        <Toaster richColors position="top-right" />
       </body>
     </html>
   )

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Fundo sólido sem bordas arredondadas (maskable precisa de fundo cheio) -->
+  <rect width="512" height="512" fill="#2563eb"/>
+  <!-- Safe zone: conteúdo dentro dos 80% centrais (409x409) -->
+  <text x="256" y="330" font-family="Arial, sans-serif" font-weight="900" font-size="220" fill="white" text-anchor="middle">RH</text>
+</svg>
