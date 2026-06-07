@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { stripe, PLANS, type PlanId } from '@/lib/stripe/config'
+import { getStripe, PLANS, type PlanId } from '@/lib/stripe/config'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
     const plan = PLANS[planId]
     if (!plan?.priceId) {
-      return NextResponse.json({ error: 'Plano inválido ou não configurado' }, { status: 400 })
+      return NextResponse.json({ error: 'Plano invalido ou nao configurado' }, { status: 400 })
     }
 
     const cookieStore = await cookies()
@@ -22,9 +22,8 @@ export async function POST(req: NextRequest) {
     )
 
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    if (!user) return NextResponse.json({ error: 'Nao autenticado' }, { status: 401 })
 
-    // Busca dados da empresa
     const { data: profile } = await supabase
       .from('profiles')
       .select('company_id, companies(name, stripe_customer_id)')
@@ -35,9 +34,8 @@ export async function POST(req: NextRequest) {
     const companyId  = profile?.company_id
     let customerId   = company?.stripe_customer_id as string | undefined
 
-    // Cria customer no Stripe se não existir
     if (!customerId) {
-      const customer = await stripe.customers.create({
+      const customer = await getStripe().customers.create({
         email:    user.email,
         name:     company?.name,
         metadata: { company_id: companyId ?? '', user_id: user.id },
@@ -52,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       customer:             customerId,
       mode:                 'subscription',
       payment_method_types: ['card'],
@@ -76,6 +74,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url: session.url })
   } catch (err) {
     console.error('Stripe checkout error:', err)
-    return NextResponse.json({ error: 'Erro ao criar sessão de pagamento' }, { status: 500 })
+    return NextResponse.json({ error: 'Erro ao criar sessao de pagamento' }, { status: 500 })
   }
 }
