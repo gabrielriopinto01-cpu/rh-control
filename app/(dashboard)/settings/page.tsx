@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Building2, User, Lock, Loader2, CheckCircle2, UserPlus, Camera, Mail, Users } from 'lucide-react'
+import { Building2, User, Lock, Loader2, CheckCircle2, UserPlus, Camera, Mail, Users, CreditCard, Zap, ArrowRight } from 'lucide-react'
+import { PLANS } from '@/lib/stripe/config'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -499,6 +500,51 @@ export default function SettingsPage() {
           </div>
         </section>
       )}
+
+      {/* ── Plano & Cobrança ───────────────────────────── */}
+      <section className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+        <div className="flex items-center gap-2">
+          <CreditCard className="h-5 w-5 text-blue-600" />
+          <h2 className="text-base font-semibold text-gray-800">Plano & Cobrança</h2>
+        </div>
+        <Separator />
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-lg font-bold text-gray-900 capitalize">
+                {(company as any)?.plan ?? 'Free'}
+              </span>
+              {(company as any)?.plan_status === 'active' && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Ativo</span>
+              )}
+              {(company as any)?.plan_status === 'past_due' && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Pagamento pendente</span>
+              )}
+            </div>
+            {(company as any)?.plan_expires_at && (
+              <p className="text-sm text-gray-500">
+                Renova em {new Date((company as any).plan_expires_at).toLocaleDateString('pt-BR')}
+              </p>
+            )}
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {(company as any)?.stripe_subscription_id && (
+              <Button variant="outline" size="sm" onClick={async () => {
+                const res = await fetch('/api/stripe/portal', { method: 'POST' })
+                const { url } = await res.json()
+                if (url) window.location.href = url
+              }}>
+                <CreditCard className="h-4 w-4 mr-1.5" /> Gerenciar assinatura
+              </Button>
+            )}
+            <Button size="sm" onClick={() => window.open('/pricing', '_blank')}>
+              <Zap className="h-4 w-4 mr-1.5" />
+              {!(company as any)?.plan || (company as any)?.plan === 'free' ? 'Fazer upgrade' : 'Ver planos'}
+              <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            </Button>
+          </div>
+        </div>
+      </section>
 
       {/* Dialog convite */}
       <Dialog open={inviteDialog} onOpenChange={setInviteDialog}>
