@@ -16,6 +16,7 @@ type Signature = {
   sent_at: string; signed_at: string | null; expires_at: string
   employee: { full_name: string; email: string } | null
   token: string
+  signed_ip?: string | null
 }
 
 type Employee = { id: string; full_name: string; email: string | null }
