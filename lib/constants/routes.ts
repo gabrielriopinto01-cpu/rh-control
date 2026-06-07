@@ -31,6 +31,12 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['adm_total', 'rh'],
   },
   {
+    label: 'Cargos',
+    href: '/positions',
+    icon: 'Briefcase',
+    roles: ['adm_total', 'rh'],
+  },
+  {
     label: 'Ponto / Frequência',
     href: '/attendance',
     icon: 'Clock',

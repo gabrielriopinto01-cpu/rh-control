@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { User, Camera, Phone, Mail, MapPin, Building2, Briefcase, Calendar, CreditCard, AlertCircle } from 'lucide-react'
+import { User, Camera, Phone, Mail, MapPin, Building2, Briefcase, Calendar, CreditCard, AlertCircle, Lock, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,6 +31,11 @@ export default function MeuPerfilPage() {
   const [avatarUrl, setAvatarUrl]           = useState<string | null>(null)
   const [uploading, setUploading]           = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Troca de senha
+  const [pwForm,    setPwForm]    = useState({ current: '', next: '', confirm: '' })
+  const [pwSaving,  setPwSaving]  = useState(false)
+  const [showPw,    setShowPw]    = useState({ current: false, next: false, confirm: false })
 
   // Inicializa estado com dados do employee quando carregado
   const displayPhone    = phone    || employee?.phone    || ''
@@ -71,6 +76,20 @@ export default function MeuPerfilPage() {
 
     setSaving(false)
     toast.success('Perfil atualizado!')
+  }
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!isSupabaseConfigured()) return
+    if (pwForm.next.length < 6)             { toast.error('Senha mínimo 6 caracteres'); return }
+    if (pwForm.next !== pwForm.confirm)      { toast.error('As senhas não conferem'); return }
+    setPwSaving(true)
+    const supabase = createClient()
+    const { error } = await supabase.auth.updateUser({ password: pwForm.next })
+    setPwSaving(false)
+    if (error) { toast.error(error.message); return }
+    setPwForm({ current: '', next: '', confirm: '' })
+    toast.success('Senha alterada com sucesso!')
   }
 
   if (loading) return <div className="p-8 text-center text-gray-400">Carregando...</div>
@@ -173,6 +192,52 @@ export default function MeuPerfilPage() {
           {saving && <span className="mr-2 animate-spin">⟳</span>}
           Salvar alterações
         </Button>
+      </div>
+
+      {/* Troca de senha */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+        <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+          <Lock className="h-4 w-4 text-gray-400" /> Alterar senha
+        </h3>
+        <form onSubmit={handleChangePassword} className="space-y-4">
+          {(['next', 'confirm'] as const).map((field) => {
+            const labels = { next: 'Nova senha', confirm: 'Confirmar nova senha' }
+            return (
+              <div key={field} className="space-y-1.5">
+                <Label>{labels[field]}</Label>
+                <div className="relative">
+                  <Input
+                    type={showPw[field] ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={pwForm[field]}
+                    onChange={e => setPwForm(f => ({ ...f, [field]: e.target.value }))}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw(s => ({ ...s, [field]: !s[field] }))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPw[field] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+          {pwForm.next && pwForm.confirm && pwForm.next !== pwForm.confirm && (
+            <p className="text-xs text-red-500">As senhas não conferem</p>
+          )}
+          <div className="flex justify-end">
+            <Button
+              type="submit"
+              variant="outline"
+              disabled={pwSaving || !pwForm.next || !pwForm.confirm}
+            >
+              {pwSaving && <span className="mr-2 animate-spin">⟳</span>}
+              Alterar senha
+            </Button>
+          </div>
+        </form>
       </div>
     </div>
   )

@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Users, Building2, Clock, DollarSign,
   Palmtree, FileText, UserPlus, TrendingUp, BarChart3,
   Settings, ChevronLeft, ChevronRight,
-  User, Timer, Receipt, FolderOpen,
+  User, Timer, Receipt, FolderOpen, Briefcase,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/lib/constants/routes'
@@ -16,7 +16,7 @@ import { useState } from 'react'
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard, Users, Building2, Clock, DollarSign,
   Palmtree, FileText, UserPlus, TrendingUp, BarChart3, Settings,
-  User, Timer, Receipt, FolderOpen,
+  User, Timer, Receipt, FolderOpen, Briefcase,
 }
 
 const ROLE_LABELS: Record<string, string> = {

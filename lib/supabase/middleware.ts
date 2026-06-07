@@ -14,6 +14,7 @@ const RESTRICTED_TO: Record<string, string[]> = {
   '/reports':       ['adm_total', 'rh', 'gestor'],
   '/recruitment':   ['adm_total', 'rh'],
   '/departments':   ['adm_total', 'rh'],
+  '/positions':     ['adm_total', 'rh'],
   '/settings':      ['adm_total', 'rh'],
   '/attendance':    ['adm_total', 'rh', 'gestor'],
   '/vacations':     ['adm_total', 'rh', 'gestor'],

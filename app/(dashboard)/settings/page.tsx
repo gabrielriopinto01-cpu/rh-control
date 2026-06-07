@@ -156,6 +156,16 @@ export default function SettingsPage() {
     setPwForm({ next: '', confirm: '' })
   }
 
+  const resendPassword = async (memberEmail: string) => {
+    if (!isSupabaseConfigured()) return
+    const supabase = createClient()
+    const { error } = await supabase.auth.resetPasswordForEmail(memberEmail, {
+      redirectTo: `${window.location.origin}/forgot-password`,
+    })
+    if (error) { toast.error('Erro ao reenviar: ' + error.message); return }
+    toast.success(`E-mail de redefinição enviado para ${memberEmail}`, { duration: 6000 })
+  }
+
   const updateMemberRole = async (memberId: string, role: string) => {
     if (!isSupabaseConfigured()) return
     const supabase = createClient()
@@ -218,12 +228,26 @@ export default function SettingsPage() {
       is_active:   true,
     }, { onConflict: 'id' })
 
-    // Vincula profile_id ao registro de funcionário selecionado
-    if (inviteForm.employee_id) {
+    // Vincula profile_id: usa seleção manual ou auto-detecta por e-mail
+    let empId = inviteForm.employee_id
+    if (!empId) {
+      const { data: empByEmail } = await supabase
+        .from('employees')
+        .select('id')
+        .eq('company_id', user.company_id)
+        .eq('email', inviteForm.email)
+        .maybeSingle()
+      if (empByEmail) empId = empByEmail.id
+    }
+    if (empId) {
       await supabase
         .from('employees')
         .update({ profile_id: authData.user.id })
-        .eq('id', inviteForm.employee_id)
+        .eq('id', empId)
+      await supabase
+        .from('profiles')
+        .update({ employee_id: empId })
+        .eq('id', authData.user.id)
     }
 
     setInviting(false)
@@ -452,6 +476,13 @@ export default function SettingsPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <button
+                        onClick={() => resendPassword(m.email)}
+                        className="text-xs px-2 py-1 rounded hover:bg-blue-50 text-blue-400"
+                        title="Enviar e-mail de redefinição de senha"
+                      >
+                        Reenviar senha
+                      </button>
                       {user?.role === 'adm_total' && (
                         <button
                           onClick={() => removeMember(m.id)}
