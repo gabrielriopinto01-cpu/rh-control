@@ -89,8 +89,8 @@ export default function RegisterPage() {
       toast.success('Empresa criada com sucesso!')
       router.push('/onboarding')
     } else {
-      toast.success('Empresa criada! Verifique seu e-mail para ativar a conta.')
-      router.push('/login?confirm=1')
+      // Confirmação de e-mail ativa no Supabase
+      router.push('/register/confirmar-email?email=' + encodeURIComponent(data.email))
     }
   }
 
