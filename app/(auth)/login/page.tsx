@@ -24,7 +24,8 @@ type LoginForm = z.infer<typeof loginSchema>
 export default function LoginPage() {
   const router       = useRouter()
   const searchParams = useSearchParams()
-  const needsConfirm = searchParams.get('confirm') === '1'
+  const needsConfirm  = searchParams.get('confirm') === '1'
+  const cadastroOk    = searchParams.get('cadastro') === 'ok'
   const [showPassword, setShowPassword] = useState(false)
 
   const {
@@ -61,6 +62,11 @@ export default function LoginPage() {
           <strong>Atenção:</strong> Supabase não configurado. Preencha o{' '}
           <code className="font-mono text-xs bg-yellow-400/20 px-1 rounded">.env.local</code>{' '}
           com suas credenciais para usar o sistema.
+        </div>
+      )}
+      {cadastroOk && (
+        <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
+          ✅ <strong>Empresa criada com sucesso!</strong> Faça login para continuar.
         </div>
       )}
       {needsConfirm && (

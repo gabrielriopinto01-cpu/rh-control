@@ -74,7 +74,7 @@ export default function RegisterPage() {
     }
 
     toast.success('Empresa criada com sucesso!')
-    router.push('/onboarding')
+    router.push('/login?cadastro=ok')
   }
 
   return (
