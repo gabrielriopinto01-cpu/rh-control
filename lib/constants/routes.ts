@@ -32,7 +32,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     label: 'Cargos',
-    href: '/positions',
+    href: '/cargos',
     icon: 'Briefcase',
     roles: ['adm_total', 'rh'],
   },
@@ -125,6 +125,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/settings',
     icon: 'Settings',
     roles: ['adm_total', 'rh'],
+  },
+  {
+    label: 'Dev / Seed',
+    href: '/dev',
+    icon: 'DatabaseZap',
+    roles: ['adm_total'],
   },
 
   // ─── Área do Colaborador ─────────────────────────────────
