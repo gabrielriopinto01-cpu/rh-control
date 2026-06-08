@@ -1,16 +1,24 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Users, DollarSign, TrendingUp, UserCheck, AlertCircle, Palmtree, Briefcase } from 'lucide-react'
+import lazyLoad from 'next/dynamic'
+import { Users, DollarSign, UserCheck, AlertCircle, Palmtree, Briefcase } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  AreaChart, Area, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { formatCurrency, formatDate } from '@/lib/utils'
+
+// Recharts lazy-loaded — sai do bundle inicial (~200 KB gzip)
+const DashboardCharts = lazyLoad(() => import('./charts'), {
+  ssr: false,
+  loading: () => (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <Skeleton className="h-56 w-full rounded-xl" />
+      <Skeleton className="h-56 w-full rounded-xl" />
+    </div>
+  ),
+})
 
 export const dynamic = 'force-dynamic'
 
@@ -184,101 +192,23 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Headcount últimos 6 meses */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-blue-500" />
-              Headcount — últimos 6 meses
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading
-              ? <Skeleton className="h-48 w-full" />
-              : (
-                <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={data?.headcountByMonth ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                    <Tooltip formatter={(v) => [Number(v ?? 0), 'Colaboradores']} />
-                    <Area type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={2}
-                      fill="url(#colorTotal)" dot={{ r: 3, fill: '#3b82f6' }} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )
-            }
-          </CardContent>
-        </Card>
+      {/* Gráficos — lazy loaded */}
+      {!loading && data && (
+        <DashboardCharts
+          headcountByMonth={data.headcountByMonth}
+          payrollTrend={data.payrollTrend}
+          empByStatus={data.empByStatus}
+        />
+      )}
+      {loading && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-56 w-full rounded-xl" />
+          <Skeleton className="h-56 w-full rounded-xl" />
+        </div>
+      )}
 
-        {/* Folha mensal */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-green-500" />
-              Folha líquida — últimos 6 meses
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading
-              ? <Skeleton className="h-48 w-full" />
-              : (
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={data?.payrollTrend ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 11 }} tickFormatter={v => v === 0 ? '0' : `${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(v) => [formatCurrency(Number(v ?? 0)), 'Líquido']} />
-                    <Bar dataKey="liquido" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )
-            }
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Status + Resumo do mês + Pendências */}
+      {/* Resumo do mês + Pendências */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Distribuição por status */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-4 w-4 text-blue-500" />
-              Por status
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading
-              ? <Skeleton className="h-40 w-full" />
-              : (
-                <ResponsiveContainer width="100%" height={160}>
-                  <BarChart data={data?.empByStatus ?? []} layout="vertical"
-                    margin={{ top: 0, right: 8, left: 4, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
-                    <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={72} />
-                    <Tooltip formatter={(v) => [Number(v ?? 0), 'Colaboradores']} />
-                    <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                      {data?.empByStatus.map((_, i) => (
-                        <rect key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              )
-            }
-          </CardContent>
-        </Card>
-
         {/* Pendências */}
         <Card>
           <CardHeader>
