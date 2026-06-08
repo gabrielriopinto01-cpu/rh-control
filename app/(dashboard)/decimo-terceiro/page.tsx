@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/use-auth'
 export const dynamic = 'force-dynamic'
 
 type Employee = {
-  id: string; full_name: string; position?: string; base_salary: number
+  id: string; full_name: string; position?: string; salary: number
   hire_date: string; department?: { name: string }
 }
 
@@ -69,7 +69,7 @@ export default function DecimoTerceiroPage() {
     const supabase = createClient()
     const { data } = await supabase
       .from('employees')
-      .select('id, full_name, position, base_salary, hire_date, department:departments(name)')
+      .select('id, full_name, position, salary, hire_date, department:departments(name)')
       .eq('company_id', user.company_id)
       .eq('status', 'active')
       .order('full_name')
@@ -82,7 +82,7 @@ export default function DecimoTerceiroPage() {
   useEffect(() => {
     const calc: CalcRow[] = employees.map(emp => {
       const months = Math.min(12, Math.max(1, monthsWorkedInYear(emp.hire_date, year)))
-      const gross  = (emp.base_salary / 12) * months
+      const gross  = (emp.salary / 12) * months
       const inss   = calcINSS(gross)
       const base   = gross - inss
       const irrf   = Math.max(0, calcIRRF(base))

@@ -11,7 +11,7 @@ import { useAuth }  from '@/hooks/use-auth'
 export const dynamic = 'force-dynamic'
 
 type Employee = {
-  id: string; full_name: string; position?: string; base_salary: number; hire_date: string
+  id: string; full_name: string; position?: string; salary: number; hire_date: string
 }
 
 type TipoRescisao =
@@ -61,7 +61,7 @@ type Verbas = {
 
 function calcRescisao(emp: Employee, tipo: TipoRescisao, demDate: Date): Verbas {
   const hire   = new Date(emp.hire_date)
-  const salary = emp.base_salary
+  const salary = emp.salary
   const dayMs  = 86_400_000
   const totalMonths   = diffMonths(hire, demDate)
   const totalYears    = Math.floor(totalMonths / 12)
@@ -128,7 +128,7 @@ export default function RescisaoPage() {
     const supabase = createClient()
     const { data } = await supabase
       .from('employees')
-      .select('id, full_name, position, base_salary, hire_date')
+      .select('id, full_name, position, salary, hire_date')
       .eq('company_id', user.company_id)
       .eq('status', 'active')
       .order('full_name')
@@ -173,7 +173,7 @@ export default function RescisaoPage() {
         <tr><th>Cargo</th><td>${selected.position ?? '—'}</td></tr>
         <tr><th>Admissão</th><td>${new Date(selected.hire_date + 'T12:00:00').toLocaleDateString('pt-BR')}</td></tr>
         <tr><th>Demissão</th><td>${new Date(demDate + 'T12:00:00').toLocaleDateString('pt-BR')}</td></tr>
-        <tr><th>Salário Base</th><td>${formatCurrency(selected.base_salary)}</td></tr>
+        <tr><th>Salário Base</th><td>${formatCurrency(selected.salary)}</td></tr>
       </table>
       <table>
         <tr><th>Verba</th><th>Valor</th></tr>
@@ -234,7 +234,7 @@ export default function RescisaoPage() {
                     className="w-full text-left px-4 py-2.5 hover:bg-blue-50 transition-colors text-sm border-b border-gray-100 last:border-0"
                   >
                     <div className="font-medium text-gray-900">{e.full_name}</div>
-                    <div className="text-xs text-gray-400">{e.position ?? '—'} · {formatCurrency(e.base_salary)}/mês</div>
+                    <div className="text-xs text-gray-400">{e.position ?? '—'} · {formatCurrency(e.salary)}/mês</div>
                   </button>
                 ))}
               </div>
@@ -244,7 +244,7 @@ export default function RescisaoPage() {
                 <div>
                   <p className="font-medium text-blue-800">{selected.full_name}</p>
                   <p className="text-xs text-blue-500">
-                    Admitido em {new Date(selected.hire_date + 'T12:00:00').toLocaleDateString('pt-BR')} · {formatCurrency(selected.base_salary)}/mês
+                    Admitido em {new Date(selected.hire_date + 'T12:00:00').toLocaleDateString('pt-BR')} · {formatCurrency(selected.salary)}/mês
                   </p>
                 </div>
                 <button onClick={() => setSelected(null)} className="text-blue-400 hover:text-red-500 text-xs">✕</button>

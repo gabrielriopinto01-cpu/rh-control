@@ -81,8 +81,8 @@ export default function CalendarioPage() {
       supabase.from('vacations').select('id, start_date, end_date, employee:employees(id, full_name, department_id)')
         .eq('company_id', user.company_id).eq('status', 'approved')
         .lte('start_date', endOfMonth).gte('end_date', startOfMonth),
-      supabase.from('attendance').select('id, date, employee:employees(id, full_name, department_id)')
-        .eq('company_id', user.company_id).eq('type', 'absence')
+      supabase.from('attendance_records').select('id, date, employee:employees(id, full_name, department_id)')
+        .eq('company_id', user.company_id).eq('status', 'absent')
         .gte('date', startOfMonth).lte('date', endOfMonth),
       supabase.from('employees').select('id, full_name, birth_date, department_id')
         .eq('company_id', user.company_id).eq('status', 'active').not('birth_date', 'is', null),
