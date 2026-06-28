@@ -53,7 +53,8 @@ export const NAV_ITEMS: NavItem[] = [
 
   // ─── Inteligência ───────────────────────────────────────
   { label: 'Workflows',     href: '/workflows', icon: 'GitMerge', group: 'Administração', roles: ['adm_total', 'rh', 'gestor'] },
-  { label: 'Relatórios',       href: '/reports',     icon: 'BarChart3',  group: 'Inteligência', roles: ['adm_total', 'rh', 'gestor'] },
+  { label: 'Relatórios',       href: '/reports',      icon: 'BarChart3',  group: 'Inteligência', roles: ['adm_total', 'rh', 'gestor'] },
+  { label: 'Indicadores BI',  href: '/indicadores',  icon: 'TrendingUp', group: 'Inteligência', roles: ['adm_total', 'rh'] },
   { label: 'Centro de Conhecimento', href: '/conhecimento', icon: 'BookMarked', group: 'Inteligência', roles: ['adm_total', 'rh', 'gestor', 'colaborador'] },
   { label: 'Assistente IA', href: '/ia',      icon: 'Sparkles',  group: 'Inteligência', roles: ['adm_total', 'rh', 'gestor'] },
 
