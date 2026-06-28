@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Upload } from 'lucide-react'
+import { Plus, Upload, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -25,6 +25,27 @@ export default function EmployeesPage() {
   const [sheetOpen, setSheetOpen]     = useState(false)
   const [editingId, setEditingId]     = useState<string | null>(null)
   const [csvOpen,   setCsvOpen]       = useState(false)
+
+  const exportCSV = () => {
+    const headers = ['Nome', 'CPF', 'E-mail', 'Telefone', 'Cargo', 'Departamento', 'Status', 'Admissão', 'Salário']
+    const rows = employees.map(e => [
+      e.full_name,
+      e.cpf ?? '',
+      e.email ?? '',
+      e.phone ?? '',
+      (e as any).position?.title ?? '',
+      (e as any).department?.name ?? '',
+      e.status,
+      e.hire_date,
+      e.salary ?? '',
+    ])
+    const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `colaboradores-${new Date().toISOString().slice(0, 10)}.csv`; a.click()
+    URL.revokeObjectURL(url)
+  }
 
   const load = useCallback(async () => {
     if (!isSupabaseConfigured() || !user) { setLoading(false); return }
@@ -171,6 +192,9 @@ export default function EmployeesPage() {
         </div>
         {user?.role !== 'gestor' && (
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={exportCSV} disabled={employees.length === 0}>
+              <Download className="h-4 w-4 mr-2" /> Exportar CSV
+            </Button>
             <Button variant="outline" onClick={() => setCsvOpen(true)}>
               <Upload className="h-4 w-4 mr-2" /> Importar CSV
             </Button>

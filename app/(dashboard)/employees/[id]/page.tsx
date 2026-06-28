@@ -83,6 +83,11 @@ export default function EmployeeDetailPage() {
   const [allBenefits, setAllBenefits] = useState<any[]>([])
   const [addingBenefit, setAddingBenefit] = useState(false)
   const [selBenefit,  setSelBenefit]  = useState('')
+  const [salaryHistory, setSalaryHistory] = useState<any[]>([])
+  const [showSalaryForm, setShowSalaryForm] = useState(false)
+  const [newSalary,    setNewSalary]    = useState('')
+  const [salaryReason, setSalaryReason] = useState('')
+  const [salaryDate,   setSalaryDate]   = useState(new Date().toISOString().slice(0, 10))
 
   const isReadOnly = user?.role === 'gestor' || user?.role === 'colaborador'
 
@@ -124,6 +129,43 @@ export default function EmployeeDetailPage() {
     fetch('/api/benefits').then(r => r.json()).then(setAllBenefits)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  const loadSalaryHistory = useCallback(async () => {
+    if (!isSupabaseConfigured() || !id) return
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('salary_history')
+      .select('*')
+      .eq('employee_id', id)
+      .order('effective_date', { ascending: false })
+    setSalaryHistory(data ?? [])
+  }, [id])
+
+  useEffect(() => { if (id && !isReadOnly) loadSalaryHistory() }, [id, isReadOnly, loadSalaryHistory])
+
+  const saveSalaryAdjustment = async () => {
+    const value = Number(newSalary.replace(/[^0-9.]/g, ''))
+    if (!value || !salaryDate) { toast.error('Preencha o novo salário e a data'); return }
+    if (!isSupabaseConfigured()) return
+    const supabase = createClient()
+    const { error } = await supabase.from('salary_history').insert({
+      employee_id:   id,
+      salary:        value,
+      effective_date: salaryDate,
+      reason:        salaryReason.trim() || null,
+      recorded_by:   user?.id,
+    })
+    if (error) {
+      if (error.message.includes('relation') || error.message.includes('does not exist')) {
+        toast.error('Tabela salary_history não existe. Execute o SQL de migração.')
+      } else { toast.error('Erro ao salvar reajuste') }
+      return
+    }
+    await supabase.from('employees').update({ salary: value }).eq('id', id!)
+    toast.success('Reajuste registrado!')
+    setShowSalaryForm(false); setNewSalary(''); setSalaryReason('')
+    load(); loadSalaryHistory()
+  }
 
   async function addBenefit() {
     if (!selBenefit) return
@@ -534,6 +576,70 @@ export default function EmployeeDetailPage() {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Histórico de Salário */}
+      {!isReadOnly && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+              <span className="text-base">💰</span> Histórico de Salário
+            </h2>
+            <Button size="sm" variant="outline" onClick={() => setShowSalaryForm(v => !v)}>
+              <Plus className="h-3.5 w-3.5 mr-1" /> Registrar reajuste
+            </Button>
+          </div>
+          {showSalaryForm && (
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3 border border-gray-200">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Novo salário (R$) *</label>
+                  <input type="number" step="0.01" placeholder="Ex: 5000.00" value={newSalary}
+                    onChange={e => setNewSalary(e.target.value)}
+                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Data de vigência *</label>
+                  <input type="date" value={salaryDate} onChange={e => setSalaryDate(e.target.value)}
+                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Motivo (opcional)</label>
+                <input type="text" placeholder="Ex: Promoção, Dissídio 2025..." value={salaryReason}
+                  onChange={e => setSalaryReason(e.target.value)}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={saveSalaryAdjustment}>Salvar reajuste</Button>
+                <Button size="sm" variant="ghost" onClick={() => setShowSalaryForm(false)}>Cancelar</Button>
+              </div>
+            </div>
+          )}
+          {salaryHistory.length === 0 ? (
+            <p className="text-sm text-gray-400">Nenhum reajuste registrado ainda.</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {salaryHistory.map((h, i) => {
+                const prev = salaryHistory[i + 1]
+                const diff = prev ? ((h.salary - prev.salary) / prev.salary * 100) : null
+                return (
+                  <div key={h.id} className="flex items-center justify-between py-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{formatCurrency(h.salary)}</p>
+                      <p className="text-xs text-gray-400">{formatDate(h.effective_date)}{h.reason ? ` · ${h.reason}` : ''}</p>
+                    </div>
+                    {diff !== null && (
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${diff >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {diff >= 0 ? '+' : ''}{diff.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
