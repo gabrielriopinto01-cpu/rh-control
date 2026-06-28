@@ -65,6 +65,7 @@ export const NAV_ITEMS: NavItem[] = [
 
   // ─── Administração ──────────────────────────────────────
   { label: 'Assinaturas',     href: '/assinaturas', icon: 'PenLine',     group: 'Administração', roles: ['adm_total', 'rh'] },
+  { label: 'e-Social',        href: '/esocial',     icon: 'Shield',   group: 'Administração', roles: ['adm_total', 'rh'] },
   { label: 'Log de Auditoria',href: '/audit-log',   icon: 'Shield',      group: 'Administração', roles: ['adm_total', 'rh'] },
   { label: 'Configurações',   href: '/settings',    icon: 'Settings',    group: 'Administração', roles: ['adm_total', 'rh'] },
   { label: 'Dev / Seed',      href: '/dev',         icon: 'DatabaseZap', group: 'Administração', roles: ['adm_total'] },
