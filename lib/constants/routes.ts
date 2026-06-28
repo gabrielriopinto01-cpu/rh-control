@@ -25,6 +25,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Admissão/Desligamento', href: '/checklists',   icon: 'ClipboardList',group: 'Pessoas', roles: ['adm_total', 'rh'] },
   { label: 'Benefícios',            href: '/beneficios',   icon: 'Gift',          group: 'Pessoas', roles: ['adm_total', 'rh'] },
   { label: 'Equipamentos',          href: '/equipamentos', icon: 'Laptop',       group: 'Pessoas', roles: ['adm_total', 'rh', 'gestor'] },
+  { label: 'Aniversariantes',      href: '/aniversariantes', icon: 'Gift',      group: 'Pessoas', roles: ['adm_total', 'rh', 'gestor'] },
 
   // ─── Departamento Pessoal ───────────────────────────────
   { label: 'Ponto / Frequência', href: '/attendance',       icon: 'Clock',        group: 'Departamento Pessoal', roles: ['adm_total', 'rh', 'gestor'] },
