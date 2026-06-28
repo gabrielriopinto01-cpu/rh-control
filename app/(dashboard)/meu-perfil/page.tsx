@@ -117,6 +117,15 @@ export default function MeuPerfilPage() {
     /[^A-Za-z0-9]/.test(senha.nova),
   ]
 
+  const profileFields = [
+    { label: 'Foto de perfil',  done: !!user?.avatar_url },
+    { label: 'CPF',             done: !!empInfo?.cpf },
+    { label: 'Telefone',        done: !!empInfo?.phone },
+    { label: 'Departamento',    done: !!(empInfo?.department as any)?.name },
+    { label: 'Cargo',           done: !!empInfo?.position },
+  ]
+  const profilePct = Math.round(profileFields.filter(f => f.done).length / profileFields.length * 100)
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -131,6 +140,28 @@ export default function MeuPerfilPage() {
         <h1 className="text-2xl font-bold text-gray-900">Meu Perfil</h1>
         <p className="text-gray-500 mt-1">Suas informações e configurações de acesso</p>
       </div>
+
+      {/* Completude do perfil */}
+      {profilePct < 100 && (
+        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-semibold text-indigo-800">Completude do perfil</p>
+            <span className="text-sm font-bold text-indigo-700">{profilePct}%</span>
+          </div>
+          <div className="h-2 bg-indigo-100 rounded-full overflow-hidden">
+            <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${profilePct}%` }} />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {profileFields.map(f => (
+              <span key={f.label} className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+                f.done ? 'bg-green-100 text-green-700' : 'bg-indigo-100 text-indigo-600'
+              }`}>
+                {f.done ? '✓' : '○'} {f.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-start gap-5">
