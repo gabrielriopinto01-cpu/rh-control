@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import lazyLoad from 'next/dynamic'
 import { OnboardingWizard } from '@/components/onboarding/onboarding-wizard'
+import ColaboradorDashboard from './colaborador-dashboard'
 import { Users, DollarSign, UserCheck, AlertCircle, Palmtree, Briefcase } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -205,6 +206,11 @@ export default function DashboardPage() {
     if (localStorage.getItem('rh_onboarding_done')) return
     if (data.totalEmployees === 0) setShowOnboarding(true)
   }, [data, user])
+
+  // Colaboradores veem um dashboard personalizado
+  if (user?.role === 'colaborador') {
+    return <ColaboradorDashboard />
+  }
 
   return (
     <div className="space-y-6">
