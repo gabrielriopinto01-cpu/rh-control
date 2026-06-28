@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { Plus, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { DataTable } from '@/components/tables/data-table'
 import { EmployeeForm } from '@/components/modules/employees/employee-form'
 import { getEmployeeColumns } from '@/components/modules/employees/employee-columns'
+import { CsvImport } from '@/components/modules/employees/csv-import'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import type { Employee, Department, Position } from '@/types/database'
@@ -23,6 +24,7 @@ export default function EmployeesPage() {
   const [loading, setLoading]         = useState(true)
   const [sheetOpen, setSheetOpen]     = useState(false)
   const [editingId, setEditingId]     = useState<string | null>(null)
+  const [csvOpen,   setCsvOpen]       = useState(false)
 
   const load = useCallback(async () => {
     if (!isSupabaseConfigured() || !user) { setLoading(false); return }
@@ -168,9 +170,14 @@ export default function EmployeesPage() {
           <p className="text-gray-500 mt-1">Gerencie os colaboradores da empresa</p>
         </div>
         {user?.role !== 'gestor' && (
-          <Button onClick={() => { setEditingId(null); setSheetOpen(true) }}>
-            <Plus className="h-4 w-4 mr-2" /> Novo colaborador
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setCsvOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" /> Importar CSV
+            </Button>
+            <Button onClick={() => { setEditingId(null); setSheetOpen(true) }}>
+              <Plus className="h-4 w-4 mr-2" /> Novo colaborador
+            </Button>
+          </div>
         )}
       </div>
 
@@ -210,6 +217,8 @@ export default function EmployeesPage() {
           />
         </SheetContent>
       </Sheet>
+
+      <CsvImport open={csvOpen} onClose={() => setCsvOpen(false)} onSuccess={load} />
     </div>
   )
 }
