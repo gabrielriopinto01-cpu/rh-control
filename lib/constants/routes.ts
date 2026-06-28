@@ -28,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Aniversariantes',      href: '/aniversariantes', icon: 'Gift',      group: 'Pessoas', roles: ['adm_total', 'rh', 'gestor'] },
 
   // ─── Departamento Pessoal ───────────────────────────────
+  { label: 'Banco de Horas',     href: '/banco-horas-equipe', icon: 'Timer', group: 'Departamento Pessoal', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'Ponto / Frequência', href: '/attendance',       icon: 'Clock',        group: 'Departamento Pessoal', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'Fechamento de Ponto',href: '/fechamento-ponto', icon: 'CalendarCheck',group: 'Departamento Pessoal', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'Espelho de Ponto',  href: '/espelho-ponto',   icon: 'Printer',       group: 'Departamento Pessoal', roles: ['adm_total', 'rh', 'gestor'] },
