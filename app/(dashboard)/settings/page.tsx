@@ -456,6 +456,9 @@ export default function SettingsPage() {
     birthday:           'Aniversário',
     document_expiring:  'Documento vencendo',
     payroll_closed:     'Folha fechada',
+    work_anniversary:   'Aniversário de empresa',
+    vacation_starting:  'Férias iniciando amanhã',
+    missing_punch:      'Ponto não registrado',
   }
   const SEND_TO_LABELS: Record<string, string> = {
     employee: 'Colaborador', manager: 'Gestor', rh: 'RH', all: 'Todos',
@@ -824,6 +827,22 @@ export default function SettingsPage() {
               </div>
             ))}
           </div>
+          {/* Disparar cron manualmente */}
+          <div className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-gray-700">Verificar automações agora</p>
+              <p className="text-xs text-gray-400">Roda diariamente às 08:00 (BRT). Clique para executar manualmente.</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={async () => {
+              const res = await fetch('/api/automations/cron')
+              const d = await res.json()
+              if (d.ok) toast.success(`Cron executado: ${d.birthdaysFired} aniversários, ${d.vacationsFired} férias, ${d.missingPunchFired} pontos ausentes`)
+              else toast.error('Erro ao executar')
+            }}>
+              Executar
+            </Button>
+          </div>
+
           {/* Histórico de envios */}
           <div className="border-t pt-4">
             <button

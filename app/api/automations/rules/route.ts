@@ -47,6 +47,21 @@ const DEFAULT_RULES = [
     template: '💰 A folha de pagamento de *{{mes}}* foi fechada com {{total}} colaboradores.\nHolerites disponíveis para download no RH Control.',
     send_to:  'rh',
   },
+  {
+    event:    'work_anniversary',
+    template: '🏆 Hoje {{nome}} completa *{{anos}} ano(s)* de empresa! Parabéns pela dedicação! 👏',
+    send_to:  'rh',
+  },
+  {
+    event:    'vacation_starting',
+    template: '🌴 Lembrete: as férias de *{{nome}}* começam amanhã ({{inicio}}) e vão até {{fim}} ({{dias}} dias).',
+    send_to:  'rh',
+  },
+  {
+    event:    'missing_punch',
+    template: '⏰ {{nome}} não registrou ponto em *{{data}}*. Verifique ou solicite a justificativa.',
+    send_to:  'rh',
+  },
 ]
 
 async function getAuth(req: NextRequest) {

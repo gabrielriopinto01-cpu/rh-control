@@ -102,6 +102,18 @@ export async function POST(req: NextRequest) {
     // ── Vincula o profile_id no colaborador ──
     await admin.from('employees').update({ profile_id: newUserId }).eq('id', emp.id)
 
+    // ── Dispara automação de admissão (fire-and-forget) ──
+    fetch(`${req.headers.get('origin') ?? process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/automations/trigger`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.INTERNAL_API_SECRET ?? '' },
+      body: JSON.stringify({
+        company_id: emp.company_id,
+        event:      'employee_admitted',
+        variables:  { nome: emp.full_name },
+        employee_id: emp.id,
+      }),
+    }).catch(() => {})
+
     // ── Garante threads de chat (empresa + departamento) e adiciona membro ──
     try {
       // Thread da empresa
