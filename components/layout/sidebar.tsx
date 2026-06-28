@@ -10,6 +10,7 @@ import {
   Gift, FileX, CalendarDays, Shield, PenLine, Network, Megaphone, DatabaseZap,
   MessageSquare, Bell, Stethoscope, UserMinus, Laptop, GraduationCap, Smile, ClipboardList, CalendarCheck, Sparkles, Star,
   BookMarked, BookOpen, Target, GitMerge, Printer, AlertTriangle, ScrollText, FileCheck,
+  Layers, FileUser,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/lib/constants/routes'
@@ -26,6 +27,7 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   Gift, FileX, CalendarDays, Shield, PenLine, Network, Megaphone, DatabaseZap,
   MessageSquare, Bell, Stethoscope, UserMinus, Laptop, GraduationCap, Smile, ClipboardList, CalendarCheck, Sparkles, Star,
   BookMarked, BookOpen, Target, GitMerge, Printer, AlertTriangle, ScrollText, FileCheck,
+  Layers, FileUser,
 }
 
 const ROLE_LABELS: Record<string, string> = {

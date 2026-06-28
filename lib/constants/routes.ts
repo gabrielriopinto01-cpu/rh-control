@@ -20,6 +20,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Colaboradores',         href: '/employees',    icon: 'Users',        group: 'Pessoas', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'Departamentos',         href: '/departments',  icon: 'Building2',    group: 'Pessoas', roles: ['adm_total', 'rh'] },
   { label: 'Cargos',                href: '/cargos',       icon: 'Briefcase',    group: 'Pessoas', roles: ['adm_total', 'rh'] },
+  { label: 'PCS — Faixas Salariais', href: '/pcs',         icon: 'Layers',       group: 'Pessoas', roles: ['adm_total', 'rh'] },
   { label: 'Organograma',           href: '/organograma',  icon: 'Network',      group: 'Pessoas', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'Recrutamento',          href: '/recruitment',  icon: 'UserPlus',     group: 'Pessoas', roles: ['adm_total', 'rh'] },
   { label: 'Admissão/Desligamento', href: '/checklists',   icon: 'ClipboardList',group: 'Pessoas', roles: ['adm_total', 'rh'] },
@@ -43,6 +44,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Advertências',       href: '/advertencias',     icon: 'AlertTriangle', group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
   { label: 'Contrato de Admissão',href: '/contrato-admissao', icon: 'ScrollText',   group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
   { label: 'Declarações',         href: '/declaracoes',       icon: 'FileCheck',    group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
+  { label: 'Ficha Cadastral',    href: '/ficha-cadastral',   icon: 'FileUser',     group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
   { label: 'Documentos',         href: '/documents',        icon: 'FileText',     group: 'Departamento Pessoal', roles: ['adm_total', 'rh', 'gestor'] },
 
   // ─── Desenvolvimento ────────────────────────────────────
