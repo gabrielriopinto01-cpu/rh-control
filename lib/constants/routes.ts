@@ -45,7 +45,8 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Documentos',         href: '/documents',        icon: 'FileText',     group: 'Departamento Pessoal', roles: ['adm_total', 'rh', 'gestor'] },
 
   // ─── Desenvolvimento ────────────────────────────────────
-  { label: 'Treinamentos', href: '/treinamentos', icon: 'GraduationCap', group: 'Desenvolvimento', roles: ['adm_total', 'rh', 'gestor'] },
+  { label: 'Treinamentos',           href: '/treinamentos',              icon: 'GraduationCap', group: 'Desenvolvimento', roles: ['adm_total', 'rh', 'gestor'] },
+  { label: 'Conformidade',           href: '/conformidade-treinamentos',  icon: 'ClipboardList', group: 'Desenvolvimento', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'Desempenho',   href: '/performance',  icon: 'TrendingUp',    group: 'Desenvolvimento', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'OKRs',         href: '/okrs',         icon: 'Target',        group: 'Desenvolvimento', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'PDI',          href: '/pdi',          icon: 'BookOpen',      group: 'Desenvolvimento', roles: ['adm_total', 'rh', 'gestor'] },
