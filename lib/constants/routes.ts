@@ -36,6 +36,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Afastamentos',       href: '/afastamentos',     icon: 'UserMinus',    group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
   { label: '13º Salário',        href: '/decimo-terceiro',  icon: 'Gift',         group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
   { label: 'Rescisão',           href: '/rescisao',         icon: 'FileX',        group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
+  { label: 'Advertências',       href: '/advertencias',     icon: 'AlertTriangle', group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
   { label: 'Documentos',         href: '/documents',        icon: 'FileText',     group: 'Departamento Pessoal', roles: ['adm_total', 'rh', 'gestor'] },
 
   // ─── Desenvolvimento ────────────────────────────────────
