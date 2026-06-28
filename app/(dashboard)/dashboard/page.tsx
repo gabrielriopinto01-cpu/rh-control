@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import lazyLoad from 'next/dynamic'
 import { OnboardingWizard } from '@/components/onboarding/onboarding-wizard'
 import ColaboradorDashboard from './colaborador-dashboard'
+import GestorDashboard from './gestor-dashboard'
 import { Users, DollarSign, UserCheck, AlertCircle, Palmtree, Briefcase } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -208,9 +209,9 @@ export default function DashboardPage() {
   }, [data, user])
 
   // Colaboradores veem um dashboard personalizado
-  if (user?.role === 'colaborador') {
-    return <ColaboradorDashboard />
-  }
+  if (user?.role === 'colaborador') return <ColaboradorDashboard />
+  // Gestores veem o painel do departamento
+  if (user?.role === 'gestor') return <GestorDashboard />
 
   return (
     <div className="space-y-6">
