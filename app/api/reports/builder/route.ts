@@ -268,6 +268,83 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    else if (report === 'absenteeism') {
+      let q = admin
+        .from('attendance_records')
+        .select('date, status, employee:employees(full_name, department:departments(name))')
+        .eq('company_id', me.company_id)
+        .in('status', ['absent', 'late'])
+        .order('date', { ascending: false })
+      if (from) q = q.gte('date', from)
+      if (to)   q = q.lte('date', to)
+      const { data: records } = await q
+
+      columns = ['Colaborador', 'Departamento', 'Data', 'Ocorrência']
+      rows = (records ?? []).map((r: any) => [
+        r.employee?.full_name ?? '',
+        r.employee?.department?.name ?? '',
+        new Date(r.date + 'T00:00:00').toLocaleDateString('pt-BR'),
+        r.status === 'absent' ? 'Falta' : 'Atraso',
+      ])
+    }
+
+    else if (report === 'warnings') {
+      let q = admin
+        .from('employee_warnings')
+        .select('occurrence_date, type, severity, status, description, employee:employees(full_name, department:departments(name))')
+        .eq('company_id', me.company_id)
+        .order('occurrence_date', { ascending: false })
+      if (from) q = q.gte('occurrence_date', from)
+      if (to)   q = q.lte('occurrence_date', to)
+      const { data: warns } = await q
+
+      const TYPE_LABELS: Record<string, string> = {
+        verbal: 'Advertência Verbal', written: 'Advertência Escrita',
+        suspension: 'Suspensão', termination_cause: 'Demissão Justa Causa',
+      }
+      const SEV_LABELS: Record<string, string> = {
+        low: 'Leve', medium: 'Média', high: 'Grave', critical: 'Gravíssima',
+      }
+      columns = ['Colaborador', 'Departamento', 'Data', 'Tipo', 'Gravidade', 'Status']
+      rows = (warns ?? []).map((w: any) => [
+        (w.employee as any)?.full_name ?? '',
+        (w.employee as any)?.department?.name ?? '',
+        new Date(w.occurrence_date + 'T00:00:00').toLocaleDateString('pt-BR'),
+        TYPE_LABELS[w.type] ?? w.type,
+        SEV_LABELS[w.severity] ?? w.severity,
+        w.status,
+      ])
+    }
+
+    else if (report === 'salary') {
+      let q = admin
+        .from('salary_history')
+        .select('effective_date, salary, reason, employee:employees(full_name, department:departments(name), position:positions(title))')
+        .order('effective_date', { ascending: false })
+      // Filter by company via employee join — use RLS + subquery approach
+      const { data: emps } = await admin.from('employees').select('id').eq('company_id', me.company_id)
+      const empIds = (emps ?? []).map((e: any) => e.id)
+      if (empIds.length === 0) { columns = ['Sem dados']; rows = [] }
+      else {
+        let qF = admin.from('salary_history')
+          .select('effective_date, salary, reason, employee:employees(full_name, department:departments(name), position:positions(title))')
+          .in('employee_id', empIds)
+          .order('effective_date', { ascending: false })
+        if (from) qF = qF.gte('effective_date', from)
+        if (to)   qF = qF.lte('effective_date', to)
+        const { data: hist } = await qF
+        columns = ['Colaborador', 'Departamento', 'Cargo', 'Data', 'Salário', 'Motivo']
+        rows = (hist ?? []).map((h: any) => [
+          h.employee?.full_name ?? '',
+          h.employee?.department?.name ?? '',
+          h.employee?.position?.title ?? '',
+          new Date(h.effective_date + 'T00:00:00').toLocaleDateString('pt-BR'),
+          Number(h.salary).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+          h.reason ?? '',
+        ])
+      }
+    }
+
     return NextResponse.json({ columns, rows, total: rows.length })
   } catch (err) {
     console.error('report builder error:', err)

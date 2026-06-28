@@ -16,7 +16,10 @@ const REPORTS = [
   { value: 'benefits',     label: 'Benefícios por Colaborador', hasDate: false },
   { value: 'okrs',         label: 'OKRs e Key Results',   hasDate: false },
   { value: 'trainings',    label: 'Treinamentos',          hasDate: true  },
-  { value: 'turnover',     label: 'Turnover / Desligamentos', hasDate: true },
+  { value: 'turnover',      label: 'Turnover / Desligamentos',   hasDate: true  },
+  { value: 'absenteeism',  label: 'Absenteísmo',              hasDate: true  },
+  { value: 'warnings',     label: 'Advertências Disciplinares',hasDate: true  },
+  { value: 'salary',       label: 'Reajustes Salariais',       hasDate: true  },
 ]
 
 function toCSV(columns: string[], rows: any[][]) {
