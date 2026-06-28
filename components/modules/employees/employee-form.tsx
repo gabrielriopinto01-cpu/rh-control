@@ -20,6 +20,7 @@ interface EmployeeFormProps {
   defaultValues?: Partial<EmployeeFormInput>
   departments: Department[]
   positions: Position[]
+  managers?: { id: string; full_name: string }[]
   companyId?: string
   initialAvatarUrl?: string | null
   onSubmit: (data: EmployeeFormData, avatarUrl?: string | null) => Promise<void>
@@ -46,7 +47,7 @@ function maskPhone(v: string) {
   return d.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3')
 }
 
-export function EmployeeForm({ defaultValues, departments, positions, companyId, initialAvatarUrl, onSubmit, onCancel }: EmployeeFormProps) {
+export function EmployeeForm({ defaultValues, departments, positions, managers = [], companyId, initialAvatarUrl, onSubmit, onCancel }: EmployeeFormProps) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl ?? null)
   const [uploading, setUploading] = useState(false)
@@ -165,6 +166,10 @@ export function EmployeeForm({ defaultValues, departments, positions, companyId,
               />
             </div>
             <div className="space-y-1.5">
+              <Label>CNH</Label>
+              <Input placeholder="Nº da habilitação" {...register('cnh')} />
+            </div>
+            <div className="space-y-1.5">
               <Label>Data de nascimento</Label>
               <Input type="date" {...register('birth_date')} />
             </div>
@@ -254,6 +259,20 @@ export function EmployeeForm({ defaultValues, departments, positions, companyId,
                 </SelectContent>
               </Select>
             </div>
+            {managers.length > 0 && (
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>Gestor responsável</Label>
+                <Select
+                  defaultValue={nn(defaultValues?.manager_id)}
+                  onValueChange={(v) => setValue('manager_id', v ?? undefined)}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione o gestor..." /></SelectTrigger>
+                  <SelectContent>
+                    {managers.map((m) => <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </TabsContent>
 

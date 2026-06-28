@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { formatCurrency } from '@/lib/utils'
+import { calcDeductions } from '@/lib/payroll/tax'
 import type { Payroll, PayrollItem, Employee, PayrollStatus } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -20,18 +21,6 @@ const STATUS_MAP: Record<PayrollStatus, { label: string; variant: 'default' | 's
   open:       { label: 'Aberta',      variant: 'outline' },
   processing: { label: 'Processando', variant: 'secondary' },
   closed:     { label: 'Fechada',     variant: 'default' },
-}
-
-function calcDeductions(gross: number) {
-  const inss = Math.min(gross * 0.14, 908.86)
-  const baseIrrf = gross - inss
-  let irrf = 0
-  if (baseIrrf > 4664.68)      irrf = baseIrrf * 0.275 - 869.36
-  else if (baseIrrf > 3751.06) irrf = baseIrrf * 0.225 - 636.13
-  else if (baseIrrf > 2826.66) irrf = baseIrrf * 0.15  - 354.80
-  else if (baseIrrf > 2259.20) irrf = baseIrrf * 0.075 - 169.44
-  const fgts = gross * 0.08
-  return { inss: +inss.toFixed(2), irrf: Math.max(0, +irrf.toFixed(2)), fgts: +fgts.toFixed(2) }
 }
 
 function monthLabel(ref: string) {
@@ -115,9 +104,36 @@ export default function PayrollPage() {
     if (!isSupabaseConfigured() || !user) return
     if (employees.length === 0) { toast.error('Sem colaboradores ativos'); return }
     const supabase = createClient()
+
+    // Busca benefícios ativos com desconto do colaborador
+    const empIds = employees.map(e => e.id)
+    const { data: empBenefits } = await supabase
+      .from('employee_benefits')
+      .select('employee_id, benefit:benefits(name, employee_discount)')
+      .in('employee_id', empIds)
+      .is('end_date', null)
+
+    // Agrupa descontos por colaborador
+    const benefitDiscountMap: Record<string, Extra[]> = {}
+    for (const eb of (empBenefits ?? []) as any[]) {
+      const disc = eb.benefit?.employee_discount ?? 0
+      if (disc <= 0) continue
+      if (!benefitDiscountMap[eb.employee_id]) benefitDiscountMap[eb.employee_id] = []
+      benefitDiscountMap[eb.employee_id].push({ descricao: eb.benefit?.name ?? 'Benefício', valor: disc })
+    }
+
     const payrollItems = employees.map(emp => {
       const { inss, irrf, fgts } = calcDeductions(emp.salary)
-      return { employee_id: emp.id, gross_salary: emp.salary, inss, irrf, fgts, net_salary: +(emp.salary - inss - irrf).toFixed(2), other_discounts: null, other_additions: null }
+      const benefDiscs = benefitDiscountMap[emp.id] ?? []
+      const totalBenefDisc = benefDiscs.reduce((s, d) => s + d.valor, 0)
+      return {
+        employee_id: emp.id,
+        gross_salary: emp.salary,
+        inss, irrf, fgts,
+        net_salary: +(emp.salary - inss - irrf - totalBenefDisc).toFixed(2),
+        other_discounts: benefDiscs.length > 0 ? benefDiscs : null,
+        other_additions: null,
+      }
     })
     const totalGross      = +payrollItems.reduce((s, i) => s + i.gross_salary, 0).toFixed(2)
     const totalDeductions = +payrollItems.reduce((s, i) => s + i.inss + i.irrf, 0).toFixed(2)
@@ -133,11 +149,24 @@ export default function PayrollPage() {
   }
 
   const closePayroll = async () => {
-    if (!payroll || !isSupabaseConfigured()) return
+    if (!payroll || !isSupabaseConfigured() || !user) return
     if (!confirm('Fechar a folha? Ela ficará como "Fechada" e poderá ser reaberta se necessário.')) return
     const supabase = createClient()
     await supabase.from('payrolls').update({ status: 'closed', closed_at: new Date().toISOString() }).eq('id', payroll.id)
     toast.success('Folha fechada!')
+    // Dispara notificação WhatsApp para o RH (fire-and-forget)
+    fetch('/api/automations/trigger', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-secret': 'dev' },
+      body: JSON.stringify({
+        company_id: user.company_id,
+        event: 'payroll_closed',
+        variables: {
+          mes:   payroll.reference_month,
+          total: String(items.length),
+        },
+      }),
+    }).catch(() => {})
     load()
   }
 

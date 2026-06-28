@@ -51,12 +51,14 @@ export default function EmployeesPage() {
     full_name:     editingEmployee.full_name,
     cpf:           editingEmployee.cpf,
     rg:            editingEmployee.rg ?? '',
+    cnh:           editingEmployee.cnh ?? '',
     birth_date:    editingEmployee.birth_date ?? '',
     hire_date:     editingEmployee.hire_date,
     contract_type: editingEmployee.contract_type,
     salary:        editingEmployee.salary,
     department_id: editingEmployee.department_id ?? '',
     position_id:   editingEmployee.position_id ?? '',
+    manager_id:    editingEmployee.manager_id ?? '',
     status:        editingEmployee.status,
     bank:          editingEmployee.bank_details?.bank ?? '',
     agency:        editingEmployee.bank_details?.agency ?? '',
@@ -84,12 +86,14 @@ export default function EmployeesPage() {
       full_name:     data.full_name,
       cpf:           data.cpf,
       rg:            data.rg ?? null,
+      cnh:           data.cnh ?? null,
       birth_date:    data.birth_date || null,
       hire_date:     data.hire_date,
       contract_type: data.contract_type,
       salary:        data.salary,
       department_id: data.department_id || null,
       position_id:   data.position_id || null,
+      manager_id:    data.manager_id || null,
       status:        data.status,
       bank_details:  data.bank ? {
         bank: data.bank, agency: data.agency ?? '', account: data.account ?? '',
@@ -107,9 +111,26 @@ export default function EmployeesPage() {
       if (error) { toast.error('Erro ao atualizar colaborador'); return }
       toast.success('Colaborador atualizado!')
     } else {
-      const { error } = await supabase.from('employees').insert({ ...payload, employee_code: '' })
+      const { data: newEmp, error } = await supabase.from('employees').insert({ ...payload, employee_code: '' }).select('id').single()
       if (error) { toast.error('Erro ao cadastrar colaborador'); return }
       toast.success('Colaborador cadastrado!')
+      // Dispara automação de boas-vindas (fire-and-forget)
+      if (newEmp) {
+        fetch('/api/automations/trigger', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-internal-secret': 'dev' },
+          body: JSON.stringify({
+            company_id: user.company_id,
+            event: 'employee_admitted',
+            variables: {
+              nome:  data.full_name,
+              email: data.email ?? '',
+              url:   window.location.origin,
+            },
+            employee_id: newEmp.id,
+          }),
+        }).catch(() => {})
+      }
     }
     setSheetOpen(false)
     setEditingId(null)
@@ -181,6 +202,7 @@ export default function EmployeesPage() {
             defaultValues={defaultValues}
             departments={departments}
             positions={positions}
+            managers={employees.filter(e => e.id !== editingId).map(e => ({ id: e.id, full_name: e.full_name }))}
             companyId={user?.company_id}
             initialAvatarUrl={editingEmployee?.avatar_url}
             onSubmit={handleSubmit}

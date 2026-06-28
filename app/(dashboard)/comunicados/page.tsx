@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Megaphone, Plus, Eye, Trash2, Users, AlertTriangle, Info, Zap, X } from 'lucide-react'
+import { Megaphone, Plus, Eye, Trash2, Users, AlertTriangle, Info, Zap, X, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input }  from '@/components/ui/input'
@@ -105,6 +105,26 @@ export default function ComunicadosPage() {
     await supabase.from('announcements').delete().eq('id', id)
     setAnnouncements(a => a.filter(x => x.id !== id))
     toast.success('Comunicado excluído')
+  }
+
+  const sendWhatsapp = async (ann: Announcement) => {
+    if (!confirm('Enviar este comunicado por WhatsApp aos colaboradores?')) return
+    const t = toast.loading('Enviando no WhatsApp...')
+    try {
+      const res = await fetch('/api/whatsapp/send', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `📢 *${ann.title}*\n\n${ann.content}`,
+          scope: ann.target_audience === 'department' ? 'department' : 'all',
+          departmentId: ann.target_department_id ?? undefined,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) { toast.error(json.error ?? 'Erro ao enviar', { id: t }); return }
+      toast.success(`Enviado: ${json.sent}/${json.total} (${json.failed} falha(s))`, { id: t })
+    } catch {
+      toast.error('Erro ao enviar', { id: t })
+    }
   }
 
   const loadReads = async (id: string) => {
@@ -269,6 +289,10 @@ export default function ComunicadosPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="ghost" size="sm" onClick={() => sendWhatsapp(ann)}
+                    className="text-green-500 hover:text-green-700" title="Enviar no WhatsApp">
+                    <MessageCircle className="h-4 w-4" />
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => loadReads(ann.id)} title="Ver leituras">
                     <Eye className="h-4 w-4" />
                   </Button>

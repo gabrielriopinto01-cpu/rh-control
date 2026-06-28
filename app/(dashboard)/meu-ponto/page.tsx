@@ -9,7 +9,9 @@ import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { useMyEmployee } from '@/hooks/use-my-employee'
 import { formatDate } from '@/lib/utils'
-import type { AttendanceRecord, AttendanceStatus } from '@/types/database'
+import { reverseGeocode } from '@/lib/geo'
+import { SelfieCapture } from '@/components/modules/attendance/selfie-capture'
+import type { AttendanceRecord, AttendanceStatus, AttendanceConfig, PunchKind } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,6 +60,8 @@ export default function MeuPontoPage() {
   const [clocking, setClocking] = useState(false)
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [locLabel, setLocLabel] = useState<string>('')
+  const [config,   setConfig]   = useState<AttendanceConfig>({})
+  const [selfieOpen, setSelfieOpen] = useState(false)
 
   const todayStr = today.toISOString().slice(0, 10)
   const todayRec = records.find(r => r.date === todayStr)
@@ -128,56 +132,66 @@ export default function MeuPontoPage() {
     })
   }, [])
 
-  const handleClock = async () => {
-    if (!isSupabaseConfigured() || !user || !employee || step === 'done' || clocking) return
-    setClocking(true)
-
-    const now     = new Date()
-    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-    const loc     = location ?? await getLocation()
-    const locNote = loc ? `[${loc.lat.toFixed(5)},${loc.lng.toFixed(5)}]` : ''
+  // Carrega a config de ponto da empresa (cerca virtual, selfie)
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !user) return
     const supabase = createClient()
+    supabase.from('companies').select('attendance_config').eq('id', user.company_id).single()
+      .then(({ data }) => setConfig((data?.attendance_config ?? {}) as AttendanceConfig))
+  }, [user])
 
-    if (step === 'in') {
-      const isLate = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() > 5)
-      const { error } = await supabase.from('attendance_records').insert({
-        company_id:  user.company_id,
-        employee_id: employee.id,
-        date:        todayStr,
-        clock_in:    timeStr,
-        status:      isLate ? 'late' : 'present',
-        notes:       locNote || null,
+  // Clique no botão: se selfie obrigatória, abre a câmera; senão bate direto
+  const handleClock = () => {
+    if (!user || !employee || step === 'done' || clocking) return
+    if (config.require_selfie) { setSelfieOpen(true); return }
+    doPunch()
+  }
+
+  // Selfie capturada → faz upload e bate o ponto
+  const handleSelfie = async (blob: Blob) => {
+    if (!user || !employee) return
+    setSelfieOpen(false)
+    setClocking(true)
+    const supabase = createClient()
+    const path = `${user.company_id}/${employee.id}/${Date.now()}.jpg`
+    const { error } = await supabase.storage.from('attendance').upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+    if (error) { toast.error('Erro ao enviar a selfie'); setClocking(false); return }
+    const { data } = supabase.storage.from('attendance').getPublicUrl(path)
+    await doPunch(data.publicUrl)
+  }
+
+  // Registra a batida via API (captura GPS, endereço; servidor grava IP/dispositivo/cerca)
+  const doPunch = async (selfieUrl?: string) => {
+    if (step === 'done') return
+    setClocking(true)
+    try {
+      const loc = location ?? await getLocation()
+      const address = loc ? await reverseGeocode(loc.lat, loc.lng) : null
+      const res = await fetch('/api/attendance/punch', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: step as PunchKind,
+          latitude:  loc?.lat ?? null,
+          longitude: loc?.lng ?? null,
+          address, selfieUrl: selfieUrl ?? null,
+        }),
       })
-      if (error) { toast.error('Erro ao registrar entrada'); setClocking(false); return }
-      toast.success(`Entrada registrada às ${timeStr}${isLate ? ' — marcado como atrasado' : ''}`)
-    } else {
-      const field: Record<Exclude<ClockStep, 'in' | 'done'>, string> = {
-        lunch_start: 'lunch_start',
-        lunch_end:   'lunch_end',
-        out:         'clock_out',
-      }
-      const update: Record<string, string | number | null> = { [field[step as Exclude<ClockStep, 'in' | 'done'>]]: timeStr }
+      const json = await res.json()
+      if (!res.ok) { toast.error(json.error ?? 'Erro ao registrar ponto'); return }
 
-      // Ao registrar saída, calcula total_hours e overtime
-      if (step === 'out' && todayRec) {
-        const total = calcHours(todayRec.clock_in ?? '', timeStr, todayRec.lunch_start ?? '', todayRec.lunch_end ?? '')
-        update.total_hours = total
-        update.overtime    = total !== null && total > 8 ? +(total - 8).toFixed(2) : null
+      const labels: Record<PunchKind, string> = {
+        in: 'Entrada', lunch_start: 'Início do almoço', lunch_end: 'Retorno do almoço', out: 'Saída',
       }
-
-      const { error } = await supabase.from('attendance_records').update(update).eq('id', todayRec!.id)
-      if (error) { toast.error('Erro ao registrar'); setClocking(false); return }
-
-      const msgs: Record<Exclude<ClockStep, 'in' | 'done'>, string> = {
-        lunch_start: `Almoço iniciado às ${timeStr}`,
-        lunch_end:   `Retorno do almoço registrado às ${timeStr}`,
-        out:         `Saída registrada às ${timeStr}`,
+      toast.success(`${labels[step as PunchKind]} registrada às ${json.time}`)
+      if (json.within_fence === false) {
+        toast.warning('Atenção: você está fora da área permitida (cerca virtual).', { duration: 6000 })
       }
-      toast.success(msgs[step as Exclude<ClockStep, 'in' | 'done'>])
+      load()
+    } catch {
+      toast.error('Erro ao registrar ponto')
+    } finally {
+      setClocking(false)
     }
-
-    setClocking(false)
-    load()
   }
 
   const prevMonth = () => { if (month === 0) { setYear(y => y - 1); setMonth(11) } else setMonth(m => m - 1) }
@@ -302,6 +316,8 @@ export default function MeuPontoPage() {
           </Badge>
         )}
       </div>
+
+      <SelfieCapture open={selfieOpen} onClose={() => setSelfieOpen(false)} onCapture={handleSelfie} />
 
       {/* Stats do mês */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">

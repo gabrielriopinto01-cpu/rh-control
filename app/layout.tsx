@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { AuthProvider } from '@/components/providers/auth-provider'
+import { BrandingProvider } from '@/components/providers/branding-provider'
 import { PWAProvider } from '@/components/providers/pwa-provider'
 import './globals.css'
 
@@ -48,9 +49,11 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} h-full antialiased`}>
         <AuthProvider>
-          <PWAProvider>
-            {children}
-          </PWAProvider>
+          <BrandingProvider>
+            <PWAProvider>
+              {children}
+            </PWAProvider>
+          </BrandingProvider>
         </AuthProvider>
       </body>
     </html>

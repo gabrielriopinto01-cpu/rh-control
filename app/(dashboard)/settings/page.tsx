@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Building2, User, Lock, Loader2, CheckCircle2, UserPlus, Camera, Mail, Users, CreditCard, Zap, ArrowRight } from 'lucide-react'
+import { Building2, User, Lock, Loader2, CheckCircle2, UserPlus, Camera, Mail, Users, CreditCard, Zap, ArrowRight, Palette, MapPin, MessageCircle, RefreshCw, BellRing, Pencil, X, Check, ScrollText, ChevronDown } from 'lucide-react'
 import { PLANS } from '@/lib/stripe/config'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
-import type { Company, Profile } from '@/types/database'
+import { useBrandingStore } from '@/lib/store/branding-store'
+import { resolveBranding, applyBrandingVars, DEFAULT_BRANDING } from '@/lib/branding'
+import type { Company, Profile, Branding } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,11 +43,37 @@ export default function SettingsPage() {
   // Empresa
   const [companyForm, setCompanyForm] = useState({ name: '', cnpj: '' })
   const [logoUrl,     setLogoUrl]     = useState<string | null>(null)
+  // White Label
+  const setStoreBranding = useBrandingStore((s) => s.setBranding)
+  const [brandForm, setBrandForm] = useState<Required<Branding>>(DEFAULT_BRANDING)
+  // Ponto eletrônico
+  const [attConfig, setAttConfig] = useState({
+    geofence_enabled: false, lat: '', lng: '', radius_m: '200', require_selfie: false,
+  })
+  // WhatsApp
+  const [waState,  setWaState]  = useState<{ connected: boolean; state: string | null; qr: string | null }>({ connected: false, state: null, qr: null })
+  const [waBusy,   setWaBusy]   = useState(false)
+  // Assinatura (Asaas)
+  const [asaasPlan,    setAsaasPlan]    = useState('professional')
+  const [asaasDoc,     setAsaasDoc]     = useState('')
+  const [asaasBilling, setAsaasBilling] = useState<'PIX' | 'BOLETO' | 'CREDIT_CARD'>('PIX')
+  const [asaasBusy,    setAsaasBusy]    = useState(false)
   // Perfil
   const [profileForm, setProfileForm] = useState({ full_name: '', email: '' })
   const [avatarUrl,   setAvatarUrl]   = useState<string | null>(null)
   // Senha
   const [pwForm, setPwForm] = useState({ next: '', confirm: '' })
+  // Automações
+  type AutoRule = { id: string; event: string; template: string; send_to: string; active: boolean; _stats24h?: { sent: number; failed: number } }
+  type AutoLog  = { id: string; event: string; recipient_name: string | null; recipient_phone: string | null; message: string | null; status: string; error: string | null; created_at: string }
+  const [autoRules,    setAutoRules]    = useState<AutoRule[]>([])
+  const [autoLoading,  setAutoLoading]  = useState(false)
+  const [editRule,     setEditRule]     = useState<AutoRule | null>(null)
+  const [editTemplate, setEditTemplate] = useState('')
+  const [autoLogs,     setAutoLogs]     = useState<AutoLog[]>([])
+  const [logsOpen,     setLogsOpen]     = useState(false)
+  const [logsLoading,  setLogsLoading]  = useState(false)
+
   // Convite
   const [inviteDialog, setInviteDialog] = useState(false)
   const [inviteForm,   setInviteForm]   = useState({ email: '', full_name: '', role: 'colaborador', employee_id: '' })
@@ -64,6 +92,15 @@ export default function SettingsPage() {
       setCompany(cRes.data)
       setCompanyForm({ name: cRes.data.name, cnpj: cRes.data.cnpj ?? '' })
       setLogoUrl(cRes.data.logo_url)
+      setBrandForm(resolveBranding(cRes.data.branding))
+      const ac = (cRes.data.attendance_config ?? {}) as Record<string, unknown>
+      setAttConfig({
+        geofence_enabled: !!ac.geofence_enabled,
+        lat: ac.lat != null ? String(ac.lat) : '',
+        lng: ac.lng != null ? String(ac.lng) : '',
+        radius_m: ac.radius_m != null ? String(ac.radius_m) : '200',
+        require_selfie: !!ac.require_selfie,
+      })
     }
     if (pRes.data) {
       setProfile(pRes.data)
@@ -85,6 +122,57 @@ export default function SettingsPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Status do WhatsApp ao abrir
+  useEffect(() => {
+    if (user?.role !== 'adm_total' && user?.role !== 'rh') return
+    fetch('/api/whatsapp/connect').then(r => r.ok ? r.json() : null).then(d => {
+      if (d) setWaState(s => ({ ...s, connected: !!d.connected, state: d.state ?? null }))
+    }).catch(() => {})
+  }, [user])
+
+  const connectWhatsapp = async () => {
+    setWaBusy(true)
+    try {
+      const res = await fetch('/api/whatsapp/connect', { method: 'POST' })
+      const json = await res.json()
+      if (!res.ok) { toast.error(json.error ?? 'Erro ao conectar'); return }
+      setWaState({ connected: !!json.connected, state: json.state ?? null, qr: json.qr ?? null })
+      if (json.connected) toast.success('WhatsApp já está conectado!')
+    } catch { toast.error('Erro ao conectar WhatsApp') }
+    finally { setWaBusy(false) }
+  }
+
+  const subscribeAsaas = async () => {
+    if (!asaasDoc.trim()) { toast.error('Informe o CPF ou CNPJ'); return }
+    setAsaasBusy(true)
+    try {
+      const res = await fetch('/api/asaas/subscribe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: asaasPlan, cpfCnpj: asaasDoc, billingType: asaasBilling }),
+      })
+      const json = await res.json()
+      if (!res.ok) { toast.error(json.error ?? 'Erro ao assinar'); return }
+      if (json.invoiceUrl) {
+        toast.success('Assinatura criada! Abrindo o pagamento...')
+        window.open(json.invoiceUrl, '_blank')
+      } else {
+        toast.success('Assinatura criada! Verifique seu e-mail para pagar.')
+      }
+    } catch { toast.error('Erro ao assinar') }
+    finally { setAsaasBusy(false) }
+  }
+
+  const refreshWhatsapp = async () => {
+    setWaBusy(true)
+    try {
+      const res = await fetch('/api/whatsapp/connect')
+      const json = await res.json()
+      setWaState(s => ({ ...s, connected: !!json.connected, state: json.state ?? null, qr: json.connected ? null : s.qr }))
+      if (json.connected) toast.success('WhatsApp conectado! 🎉')
+    } catch {}
+    finally { setWaBusy(false) }
+  }
+
   // Upload logo da empresa
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -97,6 +185,7 @@ export default function SettingsPage() {
     const { data } = supabase.storage.from('documents').getPublicUrl(path)
     setLogoUrl(data.publicUrl)
     await supabase.from('companies').update({ logo_url: data.publicUrl }).eq('id', user.company_id)
+    setStoreBranding(brandForm, data.publicUrl)
     toast.success('Logo atualizada!')
   }
 
@@ -127,6 +216,59 @@ export default function SettingsPage() {
     if (error) { toast.error('Erro ao salvar'); return }
     toast.success('Empresa atualizada!')
     load()
+  }
+
+  const saveBranding = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!isSupabaseConfigured() || !company) return
+    setSaving('branding')
+    const supabase = createClient()
+    const branding: Branding = {
+      primary:     brandForm.primary,
+      secondary:   brandForm.secondary,
+      button:      brandForm.button,
+      system_name: brandForm.system_name,
+      tagline:     brandForm.tagline,
+      footer:      brandForm.footer,
+    }
+    const { error } = await supabase.from('companies').update({ branding }).eq('id', company.id)
+    setSaving(null)
+    if (error) { toast.error('Erro ao salvar identidade visual'); return }
+    // Aplica na hora
+    const resolved = resolveBranding(branding)
+    applyBrandingVars(resolved)
+    setStoreBranding(resolved, logoUrl)
+    toast.success('Identidade visual atualizada!')
+  }
+
+  const saveAttendance = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!isSupabaseConfigured() || !company) return
+    setSaving('attendance')
+    const supabase = createClient()
+    const attendance_config = {
+      geofence_enabled: attConfig.geofence_enabled,
+      lat: attConfig.lat ? Number(attConfig.lat) : null,
+      lng: attConfig.lng ? Number(attConfig.lng) : null,
+      radius_m: attConfig.radius_m ? Number(attConfig.radius_m) : 200,
+      require_selfie: attConfig.require_selfie,
+    }
+    const { error } = await supabase.from('companies').update({ attendance_config }).eq('id', company.id)
+    setSaving(null)
+    if (error) { toast.error('Erro ao salvar configuração de ponto'); return }
+    toast.success('Configuração de ponto salva!')
+  }
+
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) { toast.error('Geolocalização indisponível'); return }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setAttConfig(c => ({ ...c, lat: pos.coords.latitude.toFixed(6), lng: pos.coords.longitude.toFixed(6) }))
+        toast.success('Localização atual capturada!')
+      },
+      () => toast.error('Não foi possível obter a localização'),
+      { timeout: 8000 },
+    )
   }
 
   const saveProfile = async (e: React.FormEvent) => {
@@ -261,6 +403,64 @@ export default function SettingsPage() {
     load()
   }
 
+  const loadAutoRules = useCallback(async () => {
+    if (!user || !['adm_total', 'rh'].includes(user.role)) return
+    setAutoLoading(true)
+    const res = await fetch('/api/automations/rules')
+    if (res.ok) setAutoRules(await res.json())
+    setAutoLoading(false)
+  }, [user])
+
+  useEffect(() => { loadAutoRules() }, [loadAutoRules])
+
+  const toggleRule = async (rule: AutoRule) => {
+    await fetch('/api/automations/rules', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: rule.id, active: !rule.active }),
+    })
+    loadAutoRules()
+  }
+
+  const saveTemplate = async () => {
+    if (!editRule) return
+    await fetch('/api/automations/rules', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: editRule.id, template: editTemplate }),
+    })
+    setEditRule(null)
+    toast.success('Template salvo!')
+    loadAutoRules()
+  }
+
+  const loadLogs = async () => {
+    if (!user || !['adm_total', 'rh'].includes(user.role)) return
+    setLogsLoading(true)
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('automation_logs')
+      .select('*')
+      .eq('company_id', user.company_id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    setAutoLogs((data as AutoLog[]) ?? [])
+    setLogsLoading(false)
+  }
+
+  const EVENT_LABELS: Record<string, string> = {
+    vacation_approved:  'Férias aprovadas',
+    vacation_rejected:  'Férias recusadas',
+    approval_requested: 'Nova solicitação de aprovação',
+    employee_admitted:  'Novo colaborador admitido',
+    birthday:           'Aniversário',
+    document_expiring:  'Documento vencendo',
+    payroll_closed:     'Folha fechada',
+  }
+  const SEND_TO_LABELS: Record<string, string> = {
+    employee: 'Colaborador', manager: 'Gestor', rh: 'RH', all: 'Todos',
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -349,6 +549,315 @@ export default function SettingsPage() {
           </div>
         </form>
       </section>
+
+      {/* White Label — Identidade visual (somente adm_total) */}
+      {user?.role === 'adm_total' && (
+        <section className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+          <div className="flex items-center gap-2">
+            <Palette className="h-5 w-5 text-pink-600" />
+            <h2 className="text-base font-semibold text-gray-800">Identidade visual (White Label)</h2>
+          </div>
+          <Separator />
+          <p className="text-sm text-gray-500">
+            Personalize o sistema com a marca da sua empresa. As mudanças aparecem para todos os usuários da empresa.
+          </p>
+
+          <form onSubmit={saveBranding} className="space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Nome do sistema</Label>
+                <Input value={brandForm.system_name}
+                  onChange={e => setBrandForm(f => ({ ...f, system_name: e.target.value }))}
+                  placeholder="RH Control" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Slogan / Tagline</Label>
+                <Input value={brandForm.tagline}
+                  onChange={e => setBrandForm(f => ({ ...f, tagline: e.target.value }))}
+                  placeholder="Gestão de pessoas" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              {([
+                { key: 'primary',   label: 'Cor principal' },
+                { key: 'secondary', label: 'Cor secundária' },
+                { key: 'button',    label: 'Cor dos botões' },
+              ] as const).map(({ key, label }) => (
+                <div key={key} className="space-y-1.5">
+                  <Label>{label}</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={brandForm[key]}
+                      onChange={e => setBrandForm(f => ({ ...f, [key]: e.target.value }))}
+                      className="h-10 w-12 rounded border border-gray-200 cursor-pointer p-0.5"
+                    />
+                    <Input value={brandForm[key]}
+                      onChange={e => setBrandForm(f => ({ ...f, [key]: e.target.value }))}
+                      className="font-mono text-xs uppercase" />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Rodapé personalizado</Label>
+              <Input value={brandForm.footer}
+                onChange={e => setBrandForm(f => ({ ...f, footer: e.target.value }))}
+                placeholder="© 2026 Minha Empresa Ltda" />
+            </div>
+
+            {/* Pré-visualização */}
+            <div className="rounded-xl border border-gray-200 overflow-hidden">
+              <div className="px-4 py-3 flex items-center gap-3"
+                   style={{ background: `linear-gradient(135deg, ${brandForm.primary}, ${brandForm.secondary})` }}>
+                {logoUrl
+                  ? <img src={logoUrl} alt="" className="h-8 w-8 rounded-md object-cover" />
+                  : <div className="h-8 w-8 rounded-md bg-white/20" />}
+                <div>
+                  <p className="text-white font-bold leading-none">{brandForm.system_name || 'RH Control'}</p>
+                  <p className="text-white/70 text-xs mt-0.5">{brandForm.tagline}</p>
+                </div>
+              </div>
+              <div className="p-4 bg-gray-50 flex items-center gap-3">
+                <button type="button" className="px-4 py-2 rounded-lg text-white text-sm font-medium"
+                        style={{ backgroundColor: brandForm.button }}>
+                  Botão de exemplo
+                </button>
+                <span className="text-sm font-medium" style={{ color: brandForm.primary }}>Link de exemplo</span>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <Button type="button" variant="ghost" size="sm"
+                onClick={() => setBrandForm(DEFAULT_BRANDING)}>
+                Restaurar padrão
+              </Button>
+              <Button type="submit" disabled={saving === 'branding'}>
+                {saving === 'branding' && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Salvar identidade visual
+              </Button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      {/* Ponto eletrônico (somente adm_total / rh) */}
+      {(user?.role === 'adm_total' || user?.role === 'rh') && (
+        <section className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-rose-600" />
+            <h2 className="text-base font-semibold text-gray-800">Ponto eletrônico</h2>
+          </div>
+          <Separator />
+          <form onSubmit={saveAttendance} className="space-y-5">
+            {/* Selfie obrigatória */}
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" className="h-4 w-4 rounded border-gray-300"
+                checked={attConfig.require_selfie}
+                onChange={e => setAttConfig(c => ({ ...c, require_selfie: e.target.checked }))} />
+              <div>
+                <p className="text-sm font-medium text-gray-800">Exigir selfie ao bater ponto</p>
+                <p className="text-xs text-gray-400">O colaborador tira uma foto a cada registro.</p>
+              </div>
+            </label>
+            <Separator />
+            {/* Cerca virtual */}
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" className="h-4 w-4 rounded border-gray-300"
+                checked={attConfig.geofence_enabled}
+                onChange={e => setAttConfig(c => ({ ...c, geofence_enabled: e.target.checked }))} />
+              <div>
+                <p className="text-sm font-medium text-gray-800">Ativar cerca virtual (geofence)</p>
+                <p className="text-xs text-gray-400">Marca batidas feitas fora do raio permitido.</p>
+              </div>
+            </label>
+
+            {attConfig.geofence_enabled && (
+              <div className="space-y-4 pl-7">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Latitude</Label>
+                    <Input placeholder="-23.5505" value={attConfig.lat}
+                      onChange={e => setAttConfig(c => ({ ...c, lat: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Longitude</Label>
+                    <Input placeholder="-46.6333" value={attConfig.lng}
+                      onChange={e => setAttConfig(c => ({ ...c, lng: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Raio (metros)</Label>
+                    <Input type="number" placeholder="200" value={attConfig.radius_m}
+                      onChange={e => setAttConfig(c => ({ ...c, radius_m: e.target.value }))} />
+                  </div>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={useCurrentLocation}>
+                  <MapPin className="h-4 w-4 mr-1.5" /> Usar minha localização atual
+                </Button>
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <Button type="submit" disabled={saving === 'attendance'}>
+                {saving === 'attendance' && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Salvar configuração
+              </Button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      {/* WhatsApp (somente adm_total / rh) */}
+      {(user?.role === 'adm_total' || user?.role === 'rh') && (
+        <section className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="h-5 w-5 text-green-600" />
+            <h2 className="text-base font-semibold text-gray-800">WhatsApp</h2>
+            {waState.connected && (
+              <span className="ml-auto inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                <CheckCircle2 className="h-3 w-3" /> Conectado
+              </span>
+            )}
+          </div>
+          <Separator />
+          <p className="text-sm text-gray-500">
+            Conecte o número de WhatsApp da sua empresa para enviar comunicados e avisos aos colaboradores.
+            Cada empresa usa o próprio número.
+          </p>
+
+          {waState.connected ? (
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-green-50 border border-green-200">
+              <CheckCircle2 className="h-6 w-6 text-green-600" />
+              <div>
+                <p className="font-medium text-green-900">WhatsApp conectado</p>
+                <p className="text-sm text-green-700">Já é possível enviar mensagens pelos comunicados.</p>
+              </div>
+            </div>
+          ) : waState.qr ? (
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-sm text-gray-600">Abra o WhatsApp no celular → <strong>Aparelhos conectados</strong> → <strong>Conectar aparelho</strong> e escaneie:</p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={waState.qr.startsWith('data:') ? waState.qr : `data:image/png;base64,${waState.qr}`} alt="QR Code" className="h-56 w-56 border rounded-lg" />
+              <Button variant="outline" size="sm" onClick={refreshWhatsapp} disabled={waBusy}>
+                {waBusy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                Já escaneei / Atualizar status
+              </Button>
+            </div>
+          ) : (
+            <Button onClick={connectWhatsapp} disabled={waBusy}>
+              {waBusy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <MessageCircle className="h-4 w-4 mr-2" />}
+              Conectar WhatsApp
+            </Button>
+          )}
+        </section>
+      )}
+
+      {/* Automações de WhatsApp */}
+      {(user?.role === 'adm_total' || user?.role === 'rh') && (
+        <section className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+          <div className="flex items-center gap-2">
+            <BellRing className="h-5 w-5 text-amber-500" />
+            <h2 className="text-base font-semibold text-gray-800">Automações WhatsApp</h2>
+            {autoLoading && <Loader2 className="h-4 w-4 animate-spin text-gray-400 ml-auto" />}
+          </div>
+          <Separator />
+          <p className="text-sm text-gray-500">
+            Configure mensagens automáticas enviadas via WhatsApp nos eventos de RH. Use <code className="bg-gray-100 px-1 rounded text-xs">{`{{variavel}}`}</code> para valores dinâmicos.
+          </p>
+
+          {autoRules.length === 0 && !autoLoading && (
+            <p className="text-sm text-gray-400 text-center py-4">Nenhuma regra encontrada. Elas são criadas automaticamente ao carregar.</p>
+          )}
+
+          <div className="space-y-3">
+            {autoRules.map(rule => (
+              <div key={rule.id} className={`rounded-lg border p-4 transition-colors ${rule.active ? 'border-amber-200 bg-amber-50/50' : 'border-gray-100 bg-gray-50/50'}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-semibold text-gray-800">{EVENT_LABELS[rule.event] ?? rule.event}</span>
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">{SEND_TO_LABELS[rule.send_to] ?? rule.send_to}</span>
+                      {rule._stats24h && (rule._stats24h.sent > 0 || rule._stats24h.failed > 0) && (
+                        <span className="text-xs text-gray-400">{rule._stats24h.sent} enviadas · {rule._stats24h.failed} falhas (24h)</span>
+                      )}
+                    </div>
+                    {editRule?.id === rule.id ? (
+                      <div className="space-y-2 mt-2">
+                        <textarea
+                          rows={4}
+                          value={editTemplate}
+                          onChange={e => setEditTemplate(e.target.value)}
+                          className="w-full text-xs border border-gray-300 rounded-lg p-2 font-mono focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={saveTemplate}>
+                            <Check className="h-3.5 w-3.5 mr-1" /> Salvar
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditRule(null)}>
+                            <X className="h-3.5 w-3.5 mr-1" /> Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500 whitespace-pre-wrap line-clamp-3 font-mono">{rule.template}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => { setEditRule(rule); setEditTemplate(rule.template) }}
+                      className="p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600"
+                      title="Editar template"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => toggleRule(rule)}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${rule.active ? 'bg-amber-400' : 'bg-gray-300'}`}
+                      title={rule.active ? 'Desativar' : 'Ativar'}
+                    >
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${rule.active ? 'translate-x-4' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Histórico de envios */}
+          <div className="border-t pt-4">
+            <button
+              onClick={() => { setLogsOpen(o => !o); if (!logsOpen) loadLogs() }}
+              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+            >
+              <ScrollText className="h-4 w-4" />
+              Histórico de envios (últimos 50)
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${logsOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {logsOpen && (
+              <div className="mt-3 space-y-2">
+                {logsLoading && <p className="text-xs text-gray-400">Carregando...</p>}
+                {!logsLoading && autoLogs.length === 0 && (
+                  <p className="text-xs text-gray-400">Nenhum envio registrado ainda.</p>
+                )}
+                {autoLogs.map(log => (
+                  <div key={log.id} className="flex items-start gap-3 text-xs p-2 rounded bg-gray-50 border">
+                    <span className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${log.status === 'sent' ? 'bg-green-500' : log.status === 'failed' ? 'bg-red-500' : 'bg-gray-400'}`} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-gray-700">{log.recipient_name ?? '—'}</span>
+                        <span className="text-gray-400 shrink-0">{new Date(log.created_at).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</span>
+                      </div>
+                      <p className="text-gray-500 truncate">{EVENT_LABELS[log.event] ?? log.event}</p>
+                      {log.error && <p className="text-red-400">{log.error}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Perfil */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
@@ -541,6 +1050,49 @@ export default function SettingsPage() {
               <Zap className="h-4 w-4 mr-1.5" />
               {!(company as any)?.plan || (company as any)?.plan === 'free' ? 'Fazer upgrade' : 'Ver planos'}
               <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Assinar com PIX/Boleto/Cartão (Asaas) */}
+        <Separator />
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-gray-700">Assinar com PIX, Boleto ou Cartão</p>
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { id: 'starter',      label: 'Starter',      price: 'R$ 97' },
+              { id: 'professional', label: 'Professional', price: 'R$ 197' },
+              { id: 'enterprise',   label: 'Enterprise',   price: 'R$ 497' },
+            ] as const).map(p => (
+              <button key={p.id} type="button" onClick={() => setAsaasPlan(p.id)}
+                className={`p-3 rounded-lg border text-center transition-colors ${
+                  asaasPlan === p.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                <p className="text-sm font-semibold text-gray-800">{p.label}</p>
+                <p className="text-xs text-gray-500">{p.price}/mês</p>
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>CPF ou CNPJ</Label>
+              <Input placeholder="Só números" value={asaasDoc} onChange={e => setAsaasDoc(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Forma de pagamento</Label>
+              <Select value={asaasBilling} onValueChange={(v) => setAsaasBilling((v ?? 'PIX') as 'PIX' | 'BOLETO' | 'CREDIT_CARD')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PIX">PIX</SelectItem>
+                  <SelectItem value="BOLETO">Boleto</SelectItem>
+                  <SelectItem value="CREDIT_CARD">Cartão de crédito</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={subscribeAsaas} disabled={asaasBusy}>
+              {asaasBusy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Assinar agora
             </Button>
           </div>
         </div>

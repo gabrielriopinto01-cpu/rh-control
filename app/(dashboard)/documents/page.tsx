@@ -12,22 +12,10 @@ import { Progress } from '@/components/ui/progress'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { formatDate } from '@/lib/utils'
+import { DOC_LABELS, DOC_COLORS } from '@/lib/constants/documents'
 import type { Document, Employee, DocumentType } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
-
-const DOC_LABELS: Record<DocumentType, string> = {
-  cpf: 'CPF', rg: 'RG', ctps: 'CTPS', pis: 'PIS', contrato: 'Contrato',
-  admissao: 'Admissão', demissao: 'Demissão', ferias: 'Férias', atestado: 'Atestado', outro: 'Outro',
-}
-
-const DOC_COLORS: Record<DocumentType, string> = {
-  cpf: 'bg-blue-100 text-blue-700', rg: 'bg-indigo-100 text-indigo-700',
-  ctps: 'bg-purple-100 text-purple-700', pis: 'bg-violet-100 text-violet-700',
-  contrato: 'bg-green-100 text-green-700', admissao: 'bg-teal-100 text-teal-700',
-  demissao: 'bg-red-100 text-red-700', ferias: 'bg-yellow-100 text-yellow-700',
-  atestado: 'bg-orange-100 text-orange-700', outro: 'bg-gray-100 text-gray-700',
-}
 
 type FormState = {
   employee_id: string
@@ -35,6 +23,7 @@ type FormState = {
   name: string
   file_url: string
   expires_at: string
+  notes: string
 }
 
 type UploadMode = 'file' | 'url'
@@ -56,7 +45,7 @@ export default function DocumentsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const blankForm = (): FormState => ({
-    employee_id: '', type: 'outro', name: '', file_url: '', expires_at: '',
+    employee_id: '', type: 'outro', name: '', file_url: '', expires_at: '', notes: '',
   })
   const [form, setForm] = useState<FormState>(blankForm)
 
@@ -128,6 +117,7 @@ export default function DocumentsPage() {
       company_id: user.company_id, employee_id: form.employee_id,
       type: form.type, name: form.name, file_url: fileUrl,
       expires_at: form.expires_at || null,
+      notes: form.notes || null,
     })
     if (error) { toast.error('Erro ao salvar documento'); return }
     toast.success('Documento salvo!')
@@ -311,6 +301,11 @@ export default function DocumentsPage() {
               <Label>Nome do documento *</Label>
               <Input placeholder="Ex: Contrato de trabalho 2024" value={form.name}
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Observações</Label>
+              <Input placeholder="Notas adicionais (opcional)" value={form.notes}
+                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
 
             {/* Modo upload */}

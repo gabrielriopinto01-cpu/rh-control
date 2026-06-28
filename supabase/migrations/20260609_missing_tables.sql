@@ -101,68 +101,90 @@ ALTER TABLE calendar_events       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE digital_signatures    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE signature_audit_trail ENABLE ROW LEVEL SECURITY;
 
+-- ─── POLICIES (drop antes para evitar conflito) ───────────────
+
 -- Announcements
-CREATE POLICY IF NOT EXISTS "ann_select" ON announcements FOR SELECT TO authenticated
+DROP POLICY IF EXISTS "ann_select" ON announcements;
+DROP POLICY IF EXISTS "ann_insert" ON announcements;
+DROP POLICY IF EXISTS "ann_update" ON announcements;
+DROP POLICY IF EXISTS "ann_delete" ON announcements;
+CREATE POLICY "ann_select" ON announcements FOR SELECT TO authenticated
   USING (company_id IN (SELECT company_id FROM profiles WHERE id = auth.uid()));
-CREATE POLICY IF NOT EXISTS "ann_insert" ON announcements FOR INSERT TO authenticated
+CREATE POLICY "ann_insert" ON announcements FOR INSERT TO authenticated
   WITH CHECK (company_id IN (SELECT company_id FROM profiles WHERE id = auth.uid()));
-CREATE POLICY IF NOT EXISTS "ann_update" ON announcements FOR UPDATE TO authenticated
+CREATE POLICY "ann_update" ON announcements FOR UPDATE TO authenticated
   USING (company_id IN (SELECT company_id FROM profiles WHERE id = auth.uid()));
-CREATE POLICY IF NOT EXISTS "ann_delete" ON announcements FOR DELETE TO authenticated
+CREATE POLICY "ann_delete" ON announcements FOR DELETE TO authenticated
   USING (company_id IN (SELECT company_id FROM profiles WHERE id = auth.uid()));
 
 -- Announcement reads
-CREATE POLICY IF NOT EXISTS "ann_reads_select" ON announcement_reads FOR SELECT TO authenticated USING (true);
-CREATE POLICY IF NOT EXISTS "ann_reads_insert" ON announcement_reads FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "ann_reads_select" ON announcement_reads;
+DROP POLICY IF EXISTS "ann_reads_insert" ON announcement_reads;
+CREATE POLICY "ann_reads_select" ON announcement_reads FOR SELECT TO authenticated USING (true);
+CREATE POLICY "ann_reads_insert" ON announcement_reads FOR INSERT TO authenticated WITH CHECK (true);
 
 -- Audit logs
-CREATE POLICY IF NOT EXISTS "audit_select" ON audit_logs FOR SELECT TO authenticated
+DROP POLICY IF EXISTS "audit_select" ON audit_logs;
+DROP POLICY IF EXISTS "audit_insert" ON audit_logs;
+CREATE POLICY "audit_select" ON audit_logs FOR SELECT TO authenticated
   USING (company_id IN (SELECT company_id FROM profiles WHERE id = auth.uid()));
-CREATE POLICY IF NOT EXISTS "audit_insert" ON audit_logs FOR INSERT TO authenticated
+CREATE POLICY "audit_insert" ON audit_logs FOR INSERT TO authenticated
   WITH CHECK (company_id IN (SELECT company_id FROM profiles WHERE id = auth.uid()));
 
 -- Calendar events
-CREATE POLICY IF NOT EXISTS "cal_select" ON calendar_events FOR SELECT TO authenticated
+DROP POLICY IF EXISTS "cal_select" ON calendar_events;
+DROP POLICY IF EXISTS "cal_insert" ON calendar_events;
+DROP POLICY IF EXISTS "cal_update" ON calendar_events;
+DROP POLICY IF EXISTS "cal_delete" ON calendar_events;
+CREATE POLICY "cal_select" ON calendar_events FOR SELECT TO authenticated
   USING (company_id IN (SELECT company_id FROM profiles WHERE id = auth.uid()));
-CREATE POLICY IF NOT EXISTS "cal_insert" ON calendar_events FOR INSERT TO authenticated
+CREATE POLICY "cal_insert" ON calendar_events FOR INSERT TO authenticated
   WITH CHECK (company_id IN (SELECT company_id FROM profiles WHERE id = auth.uid()));
-CREATE POLICY IF NOT EXISTS "cal_update" ON calendar_events FOR UPDATE TO authenticated
+CREATE POLICY "cal_update" ON calendar_events FOR UPDATE TO authenticated
   USING (company_id IN (SELECT company_id FROM profiles WHERE id = auth.uid()));
-CREATE POLICY IF NOT EXISTS "cal_delete" ON calendar_events FOR DELETE TO authenticated
+CREATE POLICY "cal_delete" ON calendar_events FOR DELETE TO authenticated
   USING (company_id IN (SELECT company_id FROM profiles WHERE id = auth.uid()));
 
 -- Digital signatures
-CREATE POLICY IF NOT EXISTS "digsig_select" ON digital_signatures FOR SELECT
-  USING (true);  -- público: necessário para página /sign/[token] sem auth
-CREATE POLICY IF NOT EXISTS "digsig_insert" ON digital_signatures FOR INSERT TO authenticated
+DROP POLICY IF EXISTS "digsig_select" ON digital_signatures;
+DROP POLICY IF EXISTS "digsig_insert" ON digital_signatures;
+DROP POLICY IF EXISTS "digsig_update" ON digital_signatures;
+CREATE POLICY "digsig_select" ON digital_signatures FOR SELECT USING (true);
+CREATE POLICY "digsig_insert" ON digital_signatures FOR INSERT TO authenticated
   WITH CHECK (company_id IN (SELECT company_id FROM profiles WHERE id = auth.uid()));
-CREATE POLICY IF NOT EXISTS "digsig_update" ON digital_signatures FOR UPDATE
-  USING (true);  -- público: colaborador sem auth pode assinar via token
+CREATE POLICY "digsig_update" ON digital_signatures FOR UPDATE USING (true);
 
 -- Signature audit trail
-CREATE POLICY IF NOT EXISTS "sig_trail_select" ON signature_audit_trail FOR SELECT TO authenticated USING (true);
-CREATE POLICY IF NOT EXISTS "sig_trail_insert" ON signature_audit_trail FOR INSERT USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "sig_trail_select" ON signature_audit_trail;
+DROP POLICY IF EXISTS "sig_trail_insert" ON signature_audit_trail;
+CREATE POLICY "sig_trail_select" ON signature_audit_trail FOR SELECT TO authenticated USING (true);
+CREATE POLICY "sig_trail_insert" ON signature_audit_trail FOR INSERT WITH CHECK (true);
 
--- ─── STORAGE — já criados, mas garante se não existir ─────────
+-- ─── STORAGE ──────────────────────────────────────────────────
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('avatars',   'avatars',   true),
        ('documents', 'documents', false)
 ON CONFLICT (id) DO NOTHING;
 
--- Storage policies para avatars
-CREATE POLICY IF NOT EXISTS "avatars_select_public" ON storage.objects FOR SELECT
-  USING (bucket_id = 'avatars');
-CREATE POLICY IF NOT EXISTS "avatars_insert_auth" ON storage.objects FOR INSERT TO authenticated
-  WITH CHECK (bucket_id = 'avatars');
-CREATE POLICY IF NOT EXISTS "avatars_update_auth" ON storage.objects FOR UPDATE TO authenticated
-  USING (bucket_id = 'avatars');
+DROP POLICY IF EXISTS "avatars_select_public" ON storage.objects;
+DROP POLICY IF EXISTS "avatars_insert_auth"   ON storage.objects;
+DROP POLICY IF EXISTS "avatars_update_auth"   ON storage.objects;
+DROP POLICY IF EXISTS "documents_select_auth" ON storage.objects;
+DROP POLICY IF EXISTS "documents_insert_auth" ON storage.objects;
+DROP POLICY IF EXISTS "documents_update_auth" ON storage.objects;
+DROP POLICY IF EXISTS "documents_delete_auth" ON storage.objects;
 
--- Storage policies para documents
-CREATE POLICY IF NOT EXISTS "documents_select_auth" ON storage.objects FOR SELECT TO authenticated
+CREATE POLICY "avatars_select_public" ON storage.objects FOR SELECT
+  USING (bucket_id = 'avatars');
+CREATE POLICY "avatars_insert_auth" ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'avatars');
+CREATE POLICY "avatars_update_auth" ON storage.objects FOR UPDATE TO authenticated
+  USING (bucket_id = 'avatars');
+CREATE POLICY "documents_select_auth" ON storage.objects FOR SELECT TO authenticated
   USING (bucket_id = 'documents');
-CREATE POLICY IF NOT EXISTS "documents_insert_auth" ON storage.objects FOR INSERT TO authenticated
+CREATE POLICY "documents_insert_auth" ON storage.objects FOR INSERT TO authenticated
   WITH CHECK (bucket_id = 'documents');
-CREATE POLICY IF NOT EXISTS "documents_update_auth" ON storage.objects FOR UPDATE TO authenticated
+CREATE POLICY "documents_update_auth" ON storage.objects FOR UPDATE TO authenticated
   USING (bucket_id = 'documents');
-CREATE POLICY IF NOT EXISTS "documents_delete_auth" ON storage.objects FOR DELETE TO authenticated
+CREATE POLICY "documents_delete_auth" ON storage.objects FOR DELETE TO authenticated
   USING (bucket_id = 'documents');

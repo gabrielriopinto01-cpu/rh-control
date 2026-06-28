@@ -29,6 +29,19 @@ const RESTRICTED_TO: Record<string, string[]> = {
   '/assinaturas':       ['adm_total', 'rh'],
   '/organograma':       ['adm_total', 'rh', 'gestor'],
   '/comunicados':       ['adm_total', 'rh'],
+  '/atestados':         ['adm_total', 'rh', 'gestor'],
+  '/afastamentos':      ['adm_total', 'rh'],
+  '/equipamentos':      ['adm_total', 'rh', 'gestor'],
+  '/treinamentos':      ['adm_total', 'rh', 'gestor'],
+  '/alertas':           ['adm_total', 'rh', 'gestor'],
+  '/checklists':        ['adm_total', 'rh'],
+  '/fechamento-ponto':  ['adm_total', 'rh', 'gestor'],
+  '/beneficios':        ['adm_total', 'rh'],
+  '/okrs':              ['adm_total', 'rh', 'gestor'],
+  '/pdi':               ['adm_total', 'rh', 'gestor'],
+  '/espelho-ponto':     ['adm_total', 'rh', 'gestor'],
+  '/workflows':         ['adm_total', 'rh', 'gestor'],
+  '/ia':                ['adm_total', 'rh', 'gestor'],
 }
 
 // Rotas exclusivas do colaborador (outros papéis → /dashboard)
@@ -40,6 +53,10 @@ const COLABORADOR_ONLY = [
   '/meus-documentos',
   '/banco-horas',
   '/meus-comunicados',
+  '/meus-treinamentos',
+  '/minha-avaliacao',
+  '/meus-beneficios',
+  '/meu-desenvolvimento',
 ]
 
 export async function updateSession(request: NextRequest) {
@@ -75,8 +92,18 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/register') ||
     pathname.startsWith('/forgot-password')
 
+  // Rotas públicas (sem login): crachá por QR, assinatura por token, e APIs
+  // (as rotas /api validam autenticação/permissão internamente; webhooks precisam ser públicos)
+  const isPublicRoute =
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/cracha') ||
+    pathname.startsWith('/sign') ||
+    pathname.startsWith('/carreiras') ||
+    pathname === '/offline' ||
+    pathname === '/pricing'
+
   // Não autenticado → login
-  if (!user && !isAuthRoute && pathname !== '/offline') {
+  if (!user && !isAuthRoute && !isPublicRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

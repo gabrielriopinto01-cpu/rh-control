@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Clock, UserCheck, UserX, AlertCircle, Plus, ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { Clock, UserCheck, UserX, AlertCircle, Plus, ChevronLeft, ChevronRight, Download, MapPin, Globe, Smartphone, ShieldAlert, ShieldCheck, Camera } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { formatDate } from '@/lib/utils'
-import type { AttendanceRecord, Employee, AttendanceStatus } from '@/types/database'
+import type { AttendanceRecord, Employee, AttendanceStatus, AttendancePunch, PunchKind } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,6 +23,21 @@ const STATUS_MAP: Record<AttendanceStatus, { label: string; color: string }> = {
   half_day: { label: 'Meio período', color: 'bg-blue-100 text-blue-700' },
   holiday:  { label: 'Feriado',      color: 'bg-purple-100 text-purple-700' },
   vacation: { label: 'Férias',       color: 'bg-indigo-100 text-indigo-700' },
+}
+
+const PUNCH_LABELS: Record<PunchKind, string> = {
+  in: 'Entrada', lunch_start: 'Início do almoço', lunch_end: 'Retorno do almoço', out: 'Saída',
+}
+
+/** Extrai um nome amigável do User-Agent. */
+function shortDevice(ua: string): string {
+  if (/iphone/i.test(ua)) return 'iPhone'
+  if (/ipad/i.test(ua)) return 'iPad'
+  if (/android/i.test(ua)) return 'Android'
+  if (/windows/i.test(ua)) return 'Windows'
+  if (/macintosh|mac os/i.test(ua)) return 'Mac'
+  if (/linux/i.test(ua)) return 'Linux'
+  return ua.slice(0, 24)
 }
 
 function getMonthRange(year: number, month: number) {
@@ -93,6 +108,9 @@ export default function AttendancePage() {
   const [filterEmp,  setFilterEmp]  = useState('all')
   const [dialog,     setDialog]     = useState(false)
   const [editingRec, setEditingRec] = useState<AttendanceRecord | null>(null)
+  const [detailRec,  setDetailRec]  = useState<AttendanceRecord | null>(null)
+  const [punches,    setPunches]    = useState<AttendancePunch[]>([])
+  const [loadingPunches, setLoadingPunches] = useState(false)
 
   const blankForm = (): FormState => ({
     employee_id: '', date: today.toISOString().slice(0, 10),
@@ -172,6 +190,21 @@ export default function AttendancePage() {
     if (error) { toast.error('Erro ao excluir'); return }
     toast.success('Registro excluído')
     load()
+  }
+
+  const openDetail = async (rec: AttendanceRecord) => {
+    setDetailRec(rec)
+    setPunches([])
+    if (!isSupabaseConfigured()) return
+    setLoadingPunches(true)
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('attendance_punches')
+      .select('*')
+      .eq('record_id', rec.id)
+      .order('punched_at', { ascending: true })
+    setPunches((data as AttendancePunch[]) ?? [])
+    setLoadingPunches(false)
   }
 
   const getEmpName = (id: string) => employees.find(e => e.id === id)?.full_name ?? '—'
@@ -282,6 +315,7 @@ export default function AttendancePage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
+                        <button onClick={() => openDetail(rec)} className="text-xs px-2 py-1 rounded hover:bg-blue-50 text-blue-500">Detalhes</button>
                         <button onClick={() => openEdit(rec)} className="text-xs px-2 py-1 rounded hover:bg-gray-100 text-gray-500">Editar</button>
                         <button onClick={() => handleDelete(rec.id)} className="text-xs px-2 py-1 rounded hover:bg-red-50 text-red-400">Excluir</button>
                       </div>
@@ -293,6 +327,78 @@ export default function AttendancePage() {
           </table>
         )}
       </div>
+
+      {/* Espelho de ponto — detalhes das batidas */}
+      <Dialog open={!!detailRec} onOpenChange={(o) => { if (!o) setDetailRec(null) }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-4 w-4" /> Espelho de ponto
+            </DialogTitle>
+          </DialogHeader>
+          {detailRec && (
+            <div className="space-y-1">
+              <p className="text-sm text-gray-500">
+                {getEmpName(detailRec.employee_id)} · {formatDate(detailRec.date)}
+              </p>
+            </div>
+          )}
+          <div className="max-h-[60vh] overflow-y-auto space-y-3 pt-1">
+            {loadingPunches ? (
+              <p className="text-sm text-gray-400 py-6 text-center">Carregando batidas...</p>
+            ) : punches.length === 0 ? (
+              <p className="text-sm text-gray-400 py-6 text-center">
+                Nenhuma batida com geolocalização registrada para este dia.
+              </p>
+            ) : punches.map(p => {
+              const label = PUNCH_LABELS[p.kind]
+              const time  = new Date(p.punched_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+              return (
+                <div key={p.id} className="flex gap-3 border border-gray-200 rounded-xl p-3">
+                  {p.selfie_url ? (
+                    <a href={p.selfie_url} target="_blank" rel="noreferrer" className="shrink-0">
+                      <img src={p.selfie_url} alt="Selfie" className="h-16 w-16 rounded-lg object-cover border border-gray-200" />
+                    </a>
+                  ) : (
+                    <div className="h-16 w-16 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                      <Camera className="h-5 w-5 text-gray-300" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1 text-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-gray-900">{label}</span>
+                      <span className="text-gray-500">{time}</span>
+                    </div>
+                    {(p.latitude != null && p.longitude != null) && (
+                      <a
+                        href={`https://www.google.com/maps?q=${p.latitude},${p.longitude}`}
+                        target="_blank" rel="noreferrer"
+                        className="flex items-center gap-1 text-blue-600 hover:underline mt-1"
+                      >
+                        <MapPin className="h-3.5 w-3.5" />
+                        <span className="truncate">{p.address ?? `${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}`}</span>
+                      </a>
+                    )}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-gray-400">
+                      {p.ip && <span className="flex items-center gap-1"><Globe className="h-3 w-3" />{p.ip}</span>}
+                      {p.device && <span className="flex items-center gap-1 truncate max-w-[180px]"><Smartphone className="h-3 w-3" />{shortDevice(p.device)}</span>}
+                    </div>
+                    {p.within_fence != null && (
+                      <span className={`inline-flex items-center gap-1 mt-2 text-xs px-2 py-0.5 rounded-full border ${
+                        p.within_fence
+                          ? 'bg-green-50 text-green-700 border-green-200'
+                          : 'bg-red-50 text-red-700 border-red-200'}`}>
+                        {p.within_fence ? <ShieldCheck className="h-3 w-3" /> : <ShieldAlert className="h-3 w-3" />}
+                        {p.within_fence ? 'Dentro da cerca' : 'Fora da cerca'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog */}
       <Dialog open={dialog} onOpenChange={setDialog}>

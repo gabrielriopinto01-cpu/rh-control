@@ -7,22 +7,10 @@ import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { useMyEmployee } from '@/hooks/use-my-employee'
 import { formatDate } from '@/lib/utils'
+import { DOC_LABELS, DOC_COLORS } from '@/lib/constants/documents'
 import type { Document, DocumentType } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
-
-const DOC_LABELS: Record<DocumentType, string> = {
-  cpf: 'CPF', rg: 'RG', ctps: 'CTPS', pis: 'PIS', contrato: 'Contrato',
-  admissao: 'Admissão', demissao: 'Demissão', ferias: 'Férias', atestado: 'Atestado', outro: 'Outro',
-}
-
-const DOC_COLORS: Record<DocumentType, string> = {
-  cpf: 'bg-blue-100 text-blue-700', rg: 'bg-indigo-100 text-indigo-700',
-  ctps: 'bg-purple-100 text-purple-700', pis: 'bg-violet-100 text-violet-700',
-  contrato: 'bg-green-100 text-green-700', admissao: 'bg-teal-100 text-teal-700',
-  demissao: 'bg-red-100 text-red-700', ferias: 'bg-yellow-100 text-yellow-700',
-  atestado: 'bg-orange-100 text-orange-700', outro: 'bg-gray-100 text-gray-700',
-}
 
 function isExpiringSoon(expiresAt: string | null): boolean {
   if (!expiresAt) return false

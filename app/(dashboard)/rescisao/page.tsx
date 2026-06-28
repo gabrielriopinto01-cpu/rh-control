@@ -7,6 +7,7 @@ import { Input }    from '@/components/ui/input'
 import { Label }    from '@/components/ui/label'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 import { useAuth }  from '@/hooks/use-auth'
+import { calcINSS, calcIRRF } from '@/lib/payroll/tax'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,14 +36,6 @@ function formatCurrency(v: number) {
 
 function diffMonths(d1: Date, d2: Date): number {
   return (d2.getFullYear() - d1.getFullYear()) * 12 + d2.getMonth() - d1.getMonth()
-}
-
-function calcINSS(salary: number) {
-  if (salary <= 1412.00) return salary * 0.075
-  if (salary <= 2666.68) return salary * 0.09
-  if (salary <= 4000.03) return salary * 0.12
-  if (salary <= 7786.02) return salary * 0.14
-  return 7786.02 * 0.14
 }
 
 type Verbas = {
@@ -103,8 +96,10 @@ function calcRescisao(emp: Employee, tipo: TipoRescisao, demDate: Date): Verbas 
   if (tipo === 'acordo_mutuo') multaFGTS = fgts * 0.2
 
   const totalBruto = saldoSalario + feriasVencidas + feriasProporcionais + decimoTerceiro + avisoPrevio + multaFGTS
-  const inss = calcINSS(saldoSalario + feriasProporcionais + decimoTerceiro)
-  const irrf = Math.max(0, (totalBruto - inss) * 0.075 - 169.44) // simplificado
+  // INSS incide sobre verbas salariais (exceto FGTS/multa/férias vencidas/aviso)
+  const baseINSS = saldoSalario + feriasProporcionais + decimoTerceiro
+  const inss = calcINSS(baseINSS)
+  const irrf = calcIRRF(baseINSS, inss)
   const totalLiquido = totalBruto - inss - irrf
 
   return {

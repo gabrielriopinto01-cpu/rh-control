@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import lazyLoad from 'next/dynamic'
+import { OnboardingWizard } from '@/components/onboarding/onboarding-wizard'
 import { Users, DollarSign, UserCheck, AlertCircle, Palmtree, Briefcase } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -32,10 +33,17 @@ interface DashboardData {
   admissionsThisMonth: number
   terminationsThisMonth: number
   reviewsThisMonth: number
+  pendingApprovals: number
+  turnoverRate: number
+  absenteeism: number
+  absencesThisMonth: number
+  latesThisMonth: number
+  certsThisMonth: number
   recentEmployees: { id: string; full_name: string; hire_date: string; status: string }[]
   headcountByMonth: { month: string; total: number }[]
   payrollTrend: { month: string; liquido: number }[]
   empByStatus: { name: string; value: number }[]
+  headcountByDept: { dept: string; total: number }[]
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -59,6 +67,7 @@ export default function DashboardPage() {
   const { user } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   const load = useCallback(async () => {
     if (!isSupabaseConfigured() || !user) { setLoading(false); return }
@@ -84,7 +93,7 @@ export default function DashboardPage() {
 
     let vacQ = supabase.from('vacations').select('id, status, employee_id').eq('company_id', user.company_id)
 
-    const [empRes, vacRes, docRes, jobRes, payRes, payTrendRes, reviewRes] = await Promise.allSettled([
+    const [empRes, vacRes, docRes, jobRes, payRes, payTrendRes, reviewRes, attRes, certRes, approvalRes, deptRes] = await Promise.allSettled([
       empQ,
       vacQ,
       supabase.from('documents').select('id, expires_at').eq('company_id', user.company_id),
@@ -94,6 +103,10 @@ export default function DashboardPage() {
       supabase.from('payrolls').select('reference_month, total_net').eq('company_id', user.company_id)
         .in('reference_month', last6).order('reference_month'),
       supabase.from('performance_reviews').select('id, created_at').eq('company_id', user.company_id),
+      supabase.from('attendance_records').select('status').eq('company_id', user.company_id).gte('date', monthStart),
+      supabase.from('medical_certificates').select('days, start_date').eq('company_id', user.company_id).gte('start_date', monthStart),
+      supabase.from('approval_requests').select('id').eq('company_id', user.company_id).eq('status', 'pending'),
+      supabase.from('employees').select('department:departments(name)').eq('company_id', user.company_id).eq('status', 'active').not('department_id', 'is', null),
     ])
 
     const employees = (empRes.status === 'fulfilled' ? empRes.value.data : null) ?? []
@@ -112,6 +125,17 @@ export default function DashboardPage() {
     const admissions    = employees.filter(e => e.hire_date >= monthStart).length
     const terminations  = employees.filter(e => e.termination_date && e.termination_date >= monthStart).length
     const reviewsMonth  = reviews.filter(r => r.created_at >= monthStart).length
+
+    const attendance     = (attRes.status === 'fulfilled' ? attRes.value.data : null) ?? []
+    const certs          = (certRes.status === 'fulfilled' ? certRes.value.data : null) ?? []
+    const pendingApprovals = ((approvalRes.status === 'fulfilled' ? approvalRes.value.data : null) ?? []).length
+    const absences    = attendance.filter((a: { status: string }) => a.status === 'absent').length
+    const lates       = attendance.filter((a: { status: string }) => a.status === 'late').length
+    const certDays    = certs.reduce((s: number, c: { days: number }) => s + (c.days ?? 0), 0)
+    // Turnover do mês = desligamentos / ativos
+    const turnoverRate = activeEmps.length > 0 ? +((terminations / activeEmps.length) * 100).toFixed(1) : 0
+    // Absenteísmo = (faltas + dias de atestado) / (ativos × 22 dias úteis)
+    const absenteeism  = activeEmps.length > 0 ? +(((absences + certDays) / (activeEmps.length * 22)) * 100).toFixed(1) : 0
 
     const headcountByMonth = last6.map(m => {
       const monthEnd = m + '-31'
@@ -134,6 +158,17 @@ export default function DashboardPage() {
       name: STATUS_LABELS[k] ?? k, value: v,
     }))
 
+    const deptEmps = (deptRes.status === 'fulfilled' ? deptRes.value.data : null) ?? []
+    const deptCount: Record<string, number> = {}
+    for (const e of deptEmps) {
+      const name = (e.department as any)?.name ?? 'Sem depto'
+      deptCount[name] = (deptCount[name] ?? 0) + 1
+    }
+    const headcountByDept = Object.entries(deptCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([dept, total]) => ({ dept, total }))
+
     setData({
       activeEmployees:       activeEmps.length,
       totalEmployees:        employees.length,
@@ -144,20 +179,38 @@ export default function DashboardPage() {
       admissionsThisMonth:   admissions,
       terminationsThisMonth: terminations,
       reviewsThisMonth:      reviewsMonth,
+      pendingApprovals,
+      turnoverRate,
+      absenteeism,
+      absencesThisMonth:     absences,
+      latesThisMonth:        lates,
+      certsThisMonth:        certs.length,
       recentEmployees:       employees.slice(0, 5).map(e => ({
         id: e.id, full_name: e.full_name, hire_date: e.hire_date, status: e.status,
       })),
       headcountByMonth,
       payrollTrend,
       empByStatus,
+      headcountByDept,
     })
     setLoading(false)
   }, [user])
 
   useEffect(() => { load() }, [load])
 
+  // Exibe wizard de onboarding para novos usuários adm/rh sem colaboradores
+  useEffect(() => {
+    if (!data || !user) return
+    if (!['adm_total', 'rh'].includes(user.role)) return
+    if (localStorage.getItem('rh_onboarding_done')) return
+    if (data.totalEmployees === 0) setShowOnboarding(true)
+  }, [data, user])
+
   return (
     <div className="space-y-6">
+      {showOnboarding && (
+        <OnboardingWizard onClose={() => setShowOnboarding(false)} />
+      )}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-gray-500 mt-1">Visão geral do seu RH</p>
@@ -192,12 +245,35 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      {/* Indicadores executivos */}
+      <div>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Indicadores executivos (mês)</p>
+        <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
+          {[
+            { label: 'Turnover',        value: data ? `${data.turnoverRate}%` : null,  hint: `${data?.terminationsThisMonth ?? 0} desligamento(s)`, color: 'text-red-600' },
+            { label: 'Absenteísmo',     value: data ? `${data.absenteeism}%` : null,   hint: 'faltas + atestados',                                  color: 'text-amber-600' },
+            { label: 'Faltas',          value: data?.absencesThisMonth,                hint: 'no mês',                                              color: 'text-orange-600' },
+            { label: 'Atestados',       value: data?.certsThisMonth,                   hint: 'no mês',                                              color: 'text-purple-600' },
+            { label: 'Docs vencendo',   value: data?.expiringDocs,                     hint: 'próximos 30 dias',                                    color: 'text-yellow-600' },
+          ].map(({ label, value, hint, color }) => (
+            <div key={label} className="bg-white rounded-xl border border-gray-200 p-4">
+              <p className="text-sm text-gray-500">{label}</p>
+              {loading
+                ? <Skeleton className="h-7 w-16 mt-1" />
+                : <p className={`text-2xl font-bold mt-0.5 ${color}`}>{value ?? '—'}</p>}
+              <p className="text-xs text-gray-400 mt-0.5">{hint}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Gráficos — lazy loaded */}
       {!loading && data && (
         <DashboardCharts
           headcountByMonth={data.headcountByMonth}
           payrollTrend={data.payrollTrend}
           empByStatus={data.empByStatus}
+          headcountByDept={data.headcountByDept}
         />
       )}
       {loading && (
@@ -220,9 +296,10 @@ export default function DashboardPage() {
           <CardContent>
             <div className="space-y-3">
               {[
-                { label: 'Férias aguardando aprovação', value: data?.pendingVacations, color: 'bg-orange-100 text-orange-700' },
-                { label: 'Docs vencendo em 30 dias',    value: data?.expiringDocs,     color: 'bg-yellow-100 text-yellow-700' },
-                { label: 'Vagas abertas',               value: data?.openJobs,         color: 'bg-blue-100 text-blue-700' },
+                { label: 'Férias aguardando aprovação', value: data?.pendingVacations,  color: 'bg-orange-100 text-orange-700' },
+                { label: 'Aprovações de workflow',      value: data?.pendingApprovals,  color: 'bg-purple-100 text-purple-700' },
+                { label: 'Docs vencendo em 30 dias',    value: data?.expiringDocs,      color: 'bg-yellow-100 text-yellow-700' },
+                { label: 'Vagas abertas',               value: data?.openJobs,          color: 'bg-blue-100 text-blue-700' },
               ].map(({ label, value, color }) => (
                 <div key={label} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                   <span className="text-sm text-gray-600">{label}</span>

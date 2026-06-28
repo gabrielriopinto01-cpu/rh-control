@@ -103,14 +103,24 @@ export default function AssinaturasPage() {
       description: `Documento enviado para assinatura por ${user!.email}`,
     })
 
-    // TODO: enviar e-mail ao colaborador com link /sign/[token]
+    // Envia e-mail ao colaborador com o link de assinatura
     const signUrl = `${window.location.origin}/sign/${data.token}`
-    toast.success(
-      <div>
-        <p className="font-semibold">Solicitação criada!</p>
-        <p className="text-xs mt-1 text-gray-600">Link: <span className="font-mono">{signUrl}</span></p>
-      </div>
-    )
+    const emailRes = await fetch('/api/email/signature', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ signatureId: data.id }),
+    })
+    if (emailRes.ok) {
+      toast.success('Solicitação criada! E-mail enviado ao colaborador.')
+    } else {
+      toast.success(
+        <div>
+          <p className="font-semibold">Solicitação criada!</p>
+          <p className="text-xs mt-1 text-amber-600">E-mail não enviado — configure RESEND_API_KEY.</p>
+          <p className="text-xs mt-0.5 text-gray-500 font-mono break-all">{signUrl}</p>
+        </div>
+      )
+    }
 
     setSaving(false)
     setShowForm(false)
@@ -293,10 +303,25 @@ export default function AssinaturasPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         {sig.status === 'pending' && !expired && (
-                          <Button variant="ghost" size="sm" onClick={() => copyLink(sig.token)}
-                            title="Copiar link" className="text-gray-400 hover:text-blue-600">
-                            <Send className="h-3.5 w-3.5" />
-                          </Button>
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => copyLink(sig.token)}
+                              title="Copiar link" className="text-gray-400 hover:text-blue-600">
+                              <Send className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="sm"
+                              title="Reenviar e-mail"
+                              className="text-gray-400 hover:text-indigo-600"
+                              onClick={async () => {
+                                const res = await fetch('/api/email/signature', {
+                                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ signatureId: sig.id }),
+                                })
+                                if (res.ok) toast.success('E-mail reenviado!')
+                                else toast.error('Erro ao reenviar. Verifique o RESEND_API_KEY.')
+                              }}>
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
                         )}
                         <Button variant="ghost" size="sm" onClick={() => loadTrail(sig)}
                           title="Ver trilha de auditoria" className="text-gray-400 hover:text-purple-600">

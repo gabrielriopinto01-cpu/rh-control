@@ -2,10 +2,10 @@
 
 // Este arquivo é carregado via next/dynamic — mantém recharts fora do bundle inicial
 import {
-  AreaChart, Area, BarChart, Bar,
+  AreaChart, Area, BarChart, Bar, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
-import { TrendingUp, DollarSign, Users } from 'lucide-react'
+import { TrendingUp, DollarSign, Users, Building2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils'
 
@@ -15,9 +15,12 @@ interface Props {
   headcountByMonth: { month: string; total: number }[]
   payrollTrend:     { month: string; liquido: number }[]
   empByStatus:      { name: string; value: number }[]
+  headcountByDept:  { dept: string; total: number }[]
 }
 
-export default function DashboardCharts({ headcountByMonth, payrollTrend, empByStatus }: Props) {
+const DEPT_COLORS = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16']
+
+export default function DashboardCharts({ headcountByMonth, payrollTrend, empByStatus, headcountByDept }: Props) {
   return (
     <>
       {/* Gráficos linha */}
@@ -69,6 +72,34 @@ export default function DashboardCharts({ headcountByMonth, payrollTrend, empByS
           </CardContent>
         </Card>
       </div>
+
+      {/* Headcount por departamento */}
+      {headcountByDept.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-purple-500" />
+              Headcount por departamento
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={Math.max(160, headcountByDept.length * 36)}>
+              <BarChart data={headcountByDept} layout="vertical"
+                margin={{ top: 0, right: 24, left: 4, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                <YAxis type="category" dataKey="dept" tick={{ fontSize: 12 }} width={100} />
+                <Tooltip formatter={(v) => [Number(v ?? 0), 'Colaboradores']} />
+                <Bar dataKey="total" radius={[0, 4, 4, 0]}>
+                  {headcountByDept.map((_, i) => (
+                    <Cell key={i} fill={DEPT_COLORS[i % DEPT_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Distribuição por status */}
       <Card>

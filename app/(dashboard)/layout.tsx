@@ -1,6 +1,7 @@
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
 import { MobileNav } from '@/components/layout/mobile-nav'
+import { BrandFooter } from '@/components/layout/brand-footer'
 import { Toaster } from '@/components/ui/sonner'
 
 export default function DashboardLayout({
@@ -21,6 +22,7 @@ export default function DashboardLayout({
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 pb-20 sm:pb-6">
           {children}
         </main>
+        <BrandFooter />
       </div>
 
       {/* Bottom nav mobile (apenas para colaborador) */}

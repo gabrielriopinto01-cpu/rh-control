@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       .select(`
         *,
         employee:employees(full_name, email),
-        payroll_run:payroll_runs(ref_month, company:companies(name))
+        payroll:payrolls(reference_month, company_id, company:companies(name))
       `)
       .eq('id', payrollItemId)
       .single()
@@ -37,31 +37,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Item não encontrado' }, { status: 404 })
     }
 
-    const emp      = item.employee as any
-    const run      = item.payroll_run as any
-    const company  = run?.company as any
+    const emp     = item.employee as any
+    const payroll = item.payroll  as any
+    const company = payroll?.company as any
 
     if (!emp?.email) {
       return NextResponse.json({ error: 'Colaborador sem e-mail cadastrado' }, { status: 400 })
     }
 
+    const extras    = (item.other_additions ?? []) as { descricao: string; valor: number }[]
+    const discounts = (item.other_discounts  ?? []) as { descricao: string; valor: number }[]
+
     const html = holeritEmail({
       employeeName: emp.full_name,
       companyName:  company?.name ?? 'Empresa',
-      refMonth:     run?.ref_month ?? '',
-      baseSalary:   item.base_salary ?? 0,
-      inss:         item.inss_deduction ?? 0,
-      irrf:         item.irrf_deduction ?? 0,
+      refMonth:     payroll?.reference_month ?? '',
+      baseSalary:   item.gross_salary ?? 0,
+      inss:         item.inss ?? 0,
+      irrf:         item.irrf ?? 0,
       fgts:         item.fgts ?? 0,
       netSalary:    item.net_salary ?? 0,
-      extras:       item.other_additions ?? [],
-      discounts:    item.other_discounts ?? [],
+      extras,
+      discounts,
     })
 
     const { data: sent, error: sendError } = await getResend().emails.send({
       from:    FROM_EMAIL,
       to:      emp.email,
-      subject: `Holerite ${run?.ref_month} — ${company?.name ?? 'RH Control'}`,
+      subject: `Holerite ${payroll?.reference_month} — ${company?.name ?? 'RH Control'}`,
       html,
     })
 

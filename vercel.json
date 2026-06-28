@@ -3,6 +3,12 @@
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/automations/cron",
+      "schedule": "0 8 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/sw.js",

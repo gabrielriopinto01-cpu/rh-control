@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { Palmtree, Clock, CheckCircle2, XCircle, Plus, Calendar } from 'lucide-react'
+import { Palmtree, Clock, CheckCircle2, XCircle, Plus, Calendar, GitMerge, Map } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -138,6 +138,22 @@ export default function VacationsPage() {
     load()
   }
 
+  const requestApproval = async (v: Vacation) => {
+    if (!user) return
+    const res = await fetch('/api/approvals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'vacation',
+        employee_id: v.employee_id,
+        reference_id: v.id,
+        payload: { start_date: v.start_date, end_date: v.end_date, days: v.days, notes: v.notes },
+      }),
+    })
+    if (res.ok) { toast.success('Solicitação de aprovação enviada!') }
+    else { const d = await res.json(); toast.error(d?.error ?? 'Erro ao solicitar aprovação') }
+  }
+
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir esta solicitação?')) return
     const supabase = createClient()
@@ -173,6 +189,27 @@ export default function VacationsPage() {
   }).filter(b => b.monthsWorked >= 6), [employees, vacations])
 
   const [showBalance, setShowBalance] = useState(false)
+  const [showMap,     setShowMap]     = useState(false)
+  const mapYear = new Date().getFullYear()
+
+  // Mapa de férias: meses do ano atual com barras de férias aprovadas
+  const vacationMap = useMemo(() => {
+    const approved = vacations.filter(v => v.status === 'approved' || v.status === 'taken')
+    return employees.map(emp => {
+      const empVacs = approved.filter(v => v.employee_id === emp.id)
+      const months: boolean[] = Array(12).fill(false)
+      empVacs.forEach(v => {
+        const s = new Date(v.start_date + 'T12:00:00')
+        const e = new Date(v.end_date   + 'T12:00:00')
+        for (let m = 0; m < 12; m++) {
+          const mStart = new Date(mapYear, m, 1)
+          const mEnd   = new Date(mapYear, m + 1, 0)
+          if (s <= mEnd && e >= mStart) months[m] = true
+        }
+      })
+      return { emp, months }
+    })
+  }, [employees, vacations, mapYear])
 
   const stats = {
     pending:  vacations.filter(v => v.status === 'pending').length,
@@ -246,6 +283,51 @@ export default function VacationsPage() {
         )}
       </div>
 
+      {/* Mapa de Férias */}
+      <div className="bg-white rounded-xl border border-gray-200">
+        <button
+          onClick={() => setShowMap(b => !b)}
+          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-xl"
+        >
+          <span className="flex items-center gap-2">
+            <Map className="h-4 w-4 text-indigo-500" />
+            Mapa de Férias {mapYear}
+          </span>
+          <span className="text-xs text-gray-400">{showMap ? 'Ocultar' : 'Visualizar'}</span>
+        </button>
+        {showMap && (
+          <div className="px-4 pb-4 overflow-x-auto">
+            <table className="w-full text-xs min-w-[640px]">
+              <thead>
+                <tr>
+                  <th className="text-left py-1 pr-3 font-medium text-gray-500 w-36">Colaborador</th>
+                  {['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'].map(m => (
+                    <th key={m} className="text-center py-1 font-medium text-gray-400 w-8">{m}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {vacationMap.length === 0 ? (
+                  <tr><td colSpan={13} className="py-4 text-center text-gray-400">Nenhum colaborador com férias aprovadas</td></tr>
+                ) : vacationMap.map(({ emp, months }) => (
+                  <tr key={emp.id} className="border-t border-gray-50">
+                    <td className="pr-3 py-1.5 font-medium text-gray-700 truncate max-w-[144px]">{emp.full_name}</td>
+                    {months.map((has, i) => (
+                      <td key={i} className="text-center py-1">
+                        <div className={`mx-auto h-5 w-6 rounded ${has ? 'bg-indigo-500' : 'bg-gray-100'}`} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-xs text-gray-400 mt-3">
+              <span className="inline-block h-3 w-4 rounded bg-indigo-500 mr-1 align-middle" /> Férias aprovadas ou usufruídas
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Filtro status */}
       <div className="flex items-center gap-3">
         <span className="text-sm text-gray-500">Status:</span>
@@ -294,16 +376,23 @@ export default function VacationsPage() {
                       <button
                         onClick={() => changeStatus(v.id, 'approved')}
                         className="p-1.5 rounded-md hover:bg-green-50 text-gray-400 hover:text-green-600"
-                        title="Aprovar"
+                        title="Aprovar diretamente"
                       >
                         <CheckCircle2 className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => changeStatus(v.id, 'rejected')}
                         className="p-1.5 rounded-md hover:bg-red-50 text-gray-400 hover:text-red-500"
-                        title="Rejeitar"
+                        title="Rejeitar diretamente"
                       >
                         <XCircle className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => requestApproval(v)}
+                        className="p-1.5 rounded-md hover:bg-purple-50 text-gray-400 hover:text-purple-600"
+                        title="Enviar para aprovação via workflow"
+                      >
+                        <GitMerge className="h-4 w-4" />
                       </button>
                     </>
                   )}

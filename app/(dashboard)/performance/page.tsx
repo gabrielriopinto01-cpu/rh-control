@@ -34,7 +34,12 @@ type ReviewForm = {
   score: string
   feedback: string
   status: ReviewStatus
+  review_type: 'manager' | 'self' | 'peer'
   goals: Goal[]
+}
+
+const REVIEW_TYPE_LABELS: Record<string, string> = {
+  manager: 'Avaliação do gestor', self: 'Autoavaliação', peer: 'Avaliação 360° (par)',
 }
 
 function ScoreStars({ score }: { score: number | null }) {
@@ -61,7 +66,7 @@ export default function PerformancePage() {
   const [newGoal,   setNewGoal]   = useState('')
 
   const blankForm = (): ReviewForm => ({
-    employee_id: '', period: '', score: '', feedback: '', status: 'draft', goals: [],
+    employee_id: '', period: '', score: '', feedback: '', status: 'draft', review_type: 'manager', goals: [],
   })
   const [form, setForm] = useState<ReviewForm>(blankForm)
 
@@ -90,6 +95,7 @@ export default function PerformancePage() {
       score:       rev.score !== null ? String(rev.score) : '',
       feedback:    rev.feedback ?? '',
       status:      rev.status,
+      review_type: rev.review_type ?? 'manager',
       goals:       rev.goals ?? [],
     })
     setDialog(true)
@@ -126,6 +132,7 @@ export default function PerformancePage() {
       score:       scoreNum,
       feedback:    form.feedback || null,
       status:      form.status,
+      review_type: form.review_type,
       goals:       form.goals.length > 0 ? form.goals : null,
     }
     if (editingRev) {
@@ -201,6 +208,9 @@ export default function PerformancePage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-semibold text-gray-900">{getEmpName(rev.employee_id)}</p>
                     <Badge variant={s.variant}>{s.label}</Badge>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">
+                      {REVIEW_TYPE_LABELS[rev.review_type ?? 'manager']}
+                    </span>
                   </div>
                   <p className="text-sm text-gray-500 mt-0.5">Período: {rev.period}</p>
                   <div className="flex items-center gap-4 mt-1">
@@ -256,6 +266,18 @@ export default function PerformancePage() {
                 <Label>Período *</Label>
                 <Input placeholder="Ex: 2024-T1 ou 2024" value={form.period}
                   onChange={e => setForm(f => ({ ...f, period: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tipo de avaliação</Label>
+                <Select
+                  defaultValue={form.review_type}
+                  onValueChange={(v) => setForm(f => ({ ...f, review_type: (v ?? 'manager') as ReviewForm['review_type'] }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(REVIEW_TYPE_LABELS).map(([v, label]) => <SelectItem key={v} value={v}>{label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Nota (1–5)</Label>

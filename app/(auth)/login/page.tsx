@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -12,7 +12,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { resolveBranding, applyBrandingVars } from '@/lib/branding'
 import { toast } from 'sonner'
+
+const BRAND_SLUG_KEY = 'rh_brand_slug'
 
 const loginSchema = z.object({
   email: z.string().email('E-mail inválido'),
@@ -27,6 +30,23 @@ export default function LoginPage() {
   const needsConfirm  = searchParams.get('confirm') === '1'
   const cadastroOk    = searchParams.get('cadastro') === 'ok'
   const [showPassword, setShowPassword] = useState(false)
+  const [brand, setBrand] = useState<{ name: string; logo: string | null; primary: string } | null>(null)
+
+  // Carrega o branding da empresa (slug em ?empresa= ou salvo no último acesso)
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return
+    const slug = searchParams.get('empresa') || (typeof window !== 'undefined' ? localStorage.getItem(BRAND_SLUG_KEY) : null)
+    if (!slug) return
+    const supabase = createClient()
+    supabase.rpc('public_company_brand', { p_slug: slug }).then(({ data }) => {
+      const row = Array.isArray(data) ? data[0] : data
+      if (!row) return
+      const b = resolveBranding(row.branding)
+      applyBrandingVars(b)
+      setBrand({ name: row.name ?? b.system_name, logo: row.logo_url ?? null, primary: b.button })
+      if (typeof window !== 'undefined') localStorage.setItem(BRAND_SLUG_KEY, slug)
+    })
+  }, [searchParams])
 
   const {
     register,
@@ -57,6 +77,14 @@ export default function LoginPage() {
 
   return (
     <>
+      {brand && (
+        <div className="mb-6 flex flex-col items-center text-center">
+          {brand.logo
+            ? <img src={brand.logo} alt={brand.name} className="h-16 w-16 rounded-xl object-cover shadow-md mb-2 bg-white" />
+            : <div className="h-16 w-16 rounded-xl shadow-md mb-2 flex items-center justify-center text-white text-2xl font-bold" style={{ background: brand.primary }}>{brand.name[0]}</div>}
+          <p className="text-lg font-bold text-white drop-shadow">{brand.name}</p>
+        </div>
+      )}
       {!isSupabaseConfigured() && (
         <div className="mb-4 rounded-lg bg-yellow-400/20 border border-yellow-400/40 px-4 py-3 text-sm text-yellow-200">
           <strong>Atenção:</strong> Supabase não configurado. Preencha o{' '}

@@ -157,6 +157,58 @@ export function vacationApprovedEmail(data: {
 </html>`
 }
 
+export function signatureRequestEmail(data: {
+  employeeName: string
+  companyName:  string
+  documentName: string
+  signUrl:      string
+  expiresAt:    string
+}) {
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+    <div style="background:linear-gradient(135deg,#7c3aed,#8b5cf6);padding:32px 40px">
+      <div style="display:inline-block;background:rgba(255,255,255,0.2);border-radius:8px;padding:8px 16px;margin-bottom:16px">
+        <span style="color:#fff;font-weight:900;font-size:18px">RH</span>
+        <span style="color:rgba(255,255,255,0.8);font-size:14px;margin-left:4px">Control</span>
+      </div>
+      <h1 style="margin:0;color:#fff;font-size:22px">✍️ Documento aguarda sua assinatura</h1>
+      <p style="margin:8px 0 0;color:rgba(255,255,255,0.8);font-size:14px">${data.companyName}</p>
+    </div>
+    <div style="padding:32px 40px">
+      <p style="color:#374151;font-size:15px;margin:0 0 20px">Olá, <strong>${data.employeeName}</strong>!</p>
+      <p style="color:#6b7280;font-size:14px;margin:0 0 8px">
+        A empresa <strong>${data.companyName}</strong> enviou um documento para a sua assinatura eletrônica:
+      </p>
+      <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:20px;margin:20px 0">
+        <p style="margin:0;font-weight:700;color:#5b21b6;font-size:16px">📄 ${data.documentName}</p>
+        <p style="margin:8px 0 0;font-size:13px;color:#7c3aed">Válido até: ${new Date(data.expiresAt).toLocaleDateString('pt-BR')}</p>
+      </div>
+      <p style="color:#6b7280;font-size:13px;margin:0 0 24px">
+        Clique no botão abaixo para ler e assinar o documento. O link expira na data indicada acima.
+      </p>
+      <div style="text-align:center">
+        <a href="${data.signUrl}"
+           style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-weight:700;font-size:15px;letter-spacing:0.3px">
+          Assinar documento agora
+        </a>
+      </div>
+      <p style="font-size:12px;color:#9ca3af;text-align:center;margin:20px 0 0">
+        Ou acesse: <span style="color:#7c3aed">${data.signUrl}</span>
+      </p>
+    </div>
+    <div style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb">
+      <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center">
+        Este e-mail foi enviado automaticamente pelo RH Control. Em caso de dúvidas, procure o RH da sua empresa.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`
+}
+
 export function welcomeEmail(data: {
   name:        string
   companyName: string

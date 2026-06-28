@@ -2,16 +2,16 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Clock, User, Palmtree, Receipt, FolderOpen, Timer } from 'lucide-react'
+import { Clock, User, Palmtree, Receipt, FolderOpen, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
 
 const COLAB_NAV = [
   { label: 'Ponto',      href: '/meu-ponto',       icon: Clock },
+  { label: 'Chat',       href: '/chat',            icon: MessageSquare },
   { label: 'Férias',     href: '/minhas-ferias',    icon: Palmtree },
   { label: 'Holerites',  href: '/meus-holerites',   icon: Receipt },
   { label: 'Documentos', href: '/meus-documentos',  icon: FolderOpen },
-  { label: 'Banco',      href: '/banco-horas',       icon: Timer },
   { label: 'Perfil',     href: '/meu-perfil',       icon: User },
 ]
 
