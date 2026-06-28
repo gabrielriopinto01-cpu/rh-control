@@ -31,6 +31,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Fechamento de Ponto',href: '/fechamento-ponto', icon: 'CalendarCheck',group: 'Departamento Pessoal', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'Espelho de Ponto',  href: '/espelho-ponto',   icon: 'Printer',       group: 'Departamento Pessoal', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'Folha de Pagamento', href: '/payroll',          icon: 'DollarSign',   group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
+  { label: 'Holerite Individual',href: '/holerite-individual', icon: 'Receipt',    group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
   { label: 'Férias',             href: '/vacations',        icon: 'Palmtree',     group: 'Departamento Pessoal', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'Atestados',          href: '/atestados',        icon: 'Stethoscope',  group: 'Departamento Pessoal', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'Afastamentos',       href: '/afastamentos',     icon: 'UserMinus',    group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
