@@ -26,6 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Admissão/Desligamento', href: '/checklists',   icon: 'ClipboardList',group: 'Pessoas', roles: ['adm_total', 'rh'] },
   { label: 'Benefícios',            href: '/beneficios',   icon: 'Gift',          group: 'Pessoas', roles: ['adm_total', 'rh'] },
   { label: 'Equipamentos',          href: '/equipamentos', icon: 'Laptop',       group: 'Pessoas', roles: ['adm_total', 'rh', 'gestor'] },
+  { label: 'Controle de EPI',       href: '/epi',          icon: 'HardHat',      group: 'Pessoas', roles: ['adm_total', 'rh'] },
   { label: 'Aniversariantes',      href: '/aniversariantes', icon: 'Gift',      group: 'Pessoas', roles: ['adm_total', 'rh', 'gestor'] },
 
   // ─── Departamento Pessoal ───────────────────────────────
@@ -40,6 +41,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Atestados',          href: '/atestados',        icon: 'Stethoscope',  group: 'Departamento Pessoal', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'Afastamentos',       href: '/afastamentos',     icon: 'UserMinus',    group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
   { label: '13º Salário',        href: '/decimo-terceiro',  icon: 'Gift',         group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
+  { label: 'PLR',                href: '/plr',              icon: 'TrendingUp',   group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
   { label: 'Rescisão',           href: '/rescisao',         icon: 'FileX',        group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
   { label: 'Advertências',       href: '/advertencias',     icon: 'AlertTriangle', group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
   { label: 'Contrato de Admissão',href: '/contrato-admissao', icon: 'ScrollText',   group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
