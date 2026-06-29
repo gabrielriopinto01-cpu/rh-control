@@ -11,6 +11,7 @@ import {
   MessageSquare, Bell, Stethoscope, UserMinus, Laptop, GraduationCap, Smile, ClipboardList, CalendarCheck, Sparkles, Star,
   BookMarked, BookOpen, Target, GitMerge, Printer, AlertTriangle, ScrollText, FileCheck,
   Layers, FileUser, HardHat, Brain, ClipboardCheck,
+  ClipboardPlus, History,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/lib/constants/routes'
@@ -28,6 +29,7 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   MessageSquare, Bell, Stethoscope, UserMinus, Laptop, GraduationCap, Smile, ClipboardList, CalendarCheck, Sparkles, Star,
   BookMarked, BookOpen, Target, GitMerge, Printer, AlertTriangle, ScrollText, FileCheck,
   Layers, FileUser, HardHat, Brain, ClipboardCheck,
+  ClipboardPlus, History,
 }
 
 const ROLE_LABELS: Record<string, string> = {
