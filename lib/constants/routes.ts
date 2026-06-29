@@ -38,6 +38,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Folha de Pagamento', href: '/payroll',          icon: 'DollarSign',   group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
   { label: 'Holerite Individual',href: '/holerite-individual', icon: 'Receipt',    group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
   { label: 'Férias',             href: '/vacations',        icon: 'Palmtree',     group: 'Departamento Pessoal', roles: ['adm_total', 'rh', 'gestor'] },
+  { label: 'Férias Coletivas',  href: '/ferias-coletivas', icon: 'Palmtree',     group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
   { label: 'Atestados',          href: '/atestados',        icon: 'Stethoscope',  group: 'Departamento Pessoal', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'Afastamentos',       href: '/afastamentos',     icon: 'UserMinus',    group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
   { label: '13º Salário',        href: '/decimo-terceiro',  icon: 'Gift',         group: 'Departamento Pessoal', roles: ['adm_total', 'rh'] },
@@ -52,8 +53,9 @@ export const NAV_ITEMS: NavItem[] = [
   // ─── Desenvolvimento ────────────────────────────────────
   { label: 'Treinamentos',           href: '/treinamentos',              icon: 'GraduationCap', group: 'Desenvolvimento', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'Conformidade',           href: '/conformidade-treinamentos',  icon: 'ClipboardList', group: 'Desenvolvimento', roles: ['adm_total', 'rh', 'gestor'] },
-  { label: 'Desempenho',   href: '/performance',  icon: 'TrendingUp',    group: 'Desenvolvimento', roles: ['adm_total', 'rh', 'gestor'] },
-  { label: 'OKRs',         href: '/okrs',         icon: 'Target',        group: 'Desenvolvimento', roles: ['adm_total', 'rh', 'gestor'] },
+  { label: 'Desempenho',       href: '/performance',   icon: 'TrendingUp',    group: 'Desenvolvimento', roles: ['adm_total', 'rh', 'gestor'] },
+  { label: 'Competências',    href: '/competencias',  icon: 'Brain',         group: 'Desenvolvimento', roles: ['adm_total', 'rh', 'gestor'] },
+  { label: 'OKRs',            href: '/okrs',          icon: 'Target',        group: 'Desenvolvimento', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'PDI',          href: '/pdi',          icon: 'BookOpen',      group: 'Desenvolvimento', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'Clima',        href: '/clima',        icon: 'Smile',         group: 'Desenvolvimento', roles: ['adm_total', 'rh', 'gestor', 'colaborador'] },
 
@@ -61,7 +63,8 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Comunicados', href: '/comunicados', icon: 'Megaphone', group: 'Comunicação', roles: ['adm_total', 'rh'] },
 
   // ─── Inteligência ───────────────────────────────────────
-  { label: 'Workflows',     href: '/workflows', icon: 'GitMerge', group: 'Administração', roles: ['adm_total', 'rh', 'gestor'] },
+  { label: 'Solicitações',  href: '/solicitacoes', icon: 'ClipboardCheck', group: 'Administração', roles: ['adm_total', 'rh', 'gestor'] },
+  { label: 'Workflows',    href: '/workflows',    icon: 'GitMerge',       group: 'Administração', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'Relatórios',       href: '/reports',      icon: 'BarChart3',  group: 'Inteligência', roles: ['adm_total', 'rh', 'gestor'] },
   { label: 'Indicadores BI',  href: '/indicadores',  icon: 'TrendingUp', group: 'Inteligência', roles: ['adm_total', 'rh'] },
   { label: 'Centro de Conhecimento', href: '/conhecimento', icon: 'BookMarked', group: 'Inteligência', roles: ['adm_total', 'rh', 'gestor', 'colaborador'] },
@@ -85,5 +88,6 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Treinamentos',   href: '/meus-treinamentos',icon: 'GraduationCap', group: 'Minha Área', roles: ['colaborador'] },
   { label: 'Minha Avaliação',    href: '/minha-avaliacao',   icon: 'Star',        group: 'Minha Área', roles: ['colaborador'] },
   { label: 'Meu Desenvolvimento',href: '/meu-desenvolvimento',icon: 'TrendingUp', group: 'Minha Área', roles: ['colaborador'] },
-  { label: 'Meus Benefícios',    href: '/meus-beneficios',   icon: 'Gift',        group: 'Minha Área', roles: ['colaborador'] },
+  { label: 'Meus Benefícios',    href: '/meus-beneficios',   icon: 'Gift',          group: 'Minha Área', roles: ['colaborador'] },
+  { label: 'Minhas Solicitações',href: '/solicitacoes',      icon: 'ClipboardCheck',group: 'Minha Área', roles: ['colaborador'] },
 ]
